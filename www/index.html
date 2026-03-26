@@ -118,6 +118,9 @@
             <button class="btn-add-item" onclick="adicionarItem()">+ Adicionar Item</button>
             <div class="total-box">Total: R$ <strong id="totalGeral">0,00</strong></div>
 
+            <label>Validade da proposta (dias):</label>
+            <input type="number" id="diasValidade" value="7" min="1" placeholder="Ex: 7">
+
             <button class="btn-whatsapp" onclick="gerarOrcamento()">🚀 GERAR E ENVIAR WHATSAPP</button>
             <button class="btn-pdf" onclick="gerarPDF()">📄 GERAR ORÇAMENTO EM PDF</button>
         </div>
@@ -389,8 +392,9 @@
         if(!cliente) { alert('Preencha o nome do cliente.'); return; }
         if(itens.length === 0) { alert('Adicione pelo menos um item com descrição.'); return; }
 
+        const dias = parseInt(document.getElementById('diasValidade').value) || 7;
         const dataValidade = new Date();
-        dataValidade.setDate(dataValidade.getDate() + 7);
+        dataValidade.setDate(dataValidade.getDate() + dias);
         const validadeStr = dataValidade.toLocaleDateString('pt-BR');
         const totalStr = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
@@ -432,6 +436,10 @@
         if(!cliente) { alert('Preencha o nome do cliente.'); return; }
         if(itens.length === 0) { alert('Adicione pelo menos um item com descrição.'); return; }
 
+        const dias = parseInt(document.getElementById('diasValidade').value) || 7;
+        const dataValidade = new Date();
+        dataValidade.setDate(dataValidade.getDate() + dias);
+        const validadeStr = dataValidade.toLocaleDateString('pt-BR');
         const totalStr = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         const linhasItens = itens.map(i =>
             `<tr>
@@ -457,6 +465,7 @@
                     <tbody>${linhasItens}</tbody>
                 </table>
                 <h2 style="text-align: right; color: #25d366; margin-top:20px;">TOTAL: R$ ${totalStr}</h2>
+                <p style="text-align:right;font-size:12px;color:#666;">Proposta válida até: ${validadeStr}</p>
             </div>
         `;
 
