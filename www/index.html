@@ -242,16 +242,40 @@
         }
     }
 
-    function carregarDadosIniciais() {
+    async function carregarDadosIniciais() {
         const nome = localStorage.getItem('usuario_nome');
         const validade = localStorage.getItem('usuario_validade');
         if(nome) {
             document.getElementById('infoUsuario').textContent = `Olá, ${nome} | Licença válida até ${validade}`;
         }
 
+        // Se já tem no localStorage, usa direto (evita chamada desnecessária ao servidor)
         if(localStorage.getItem('empresa')) {
             document.getElementById('minhaEmpresa').value = localStorage.getItem('empresa');
             document.getElementById('meuZap').value = localStorage.getItem('zap');
+            return;
+        }
+
+        // Se não tem (dispositivo novo ou app limpo), busca do servidor
+        const usuario_id = localStorage.getItem('usuario_id');
+        if(!usuario_id) return;
+
+        try {
+            const dados = new FormData();
+            dados.append('usuario_id', usuario_id);
+            const resposta = await fetch(`${SERVER_URL}/buscar_config.php`, {
+                method: 'POST',
+                body: dados
+            });
+            const resultado = await resposta.json();
+            if(resultado.status === 'sucesso') {
+                document.getElementById('minhaEmpresa').value = resultado.empresa || '';
+                document.getElementById('meuZap').value = resultado.zap || '';
+                localStorage.setItem('empresa', resultado.empresa || '');
+                localStorage.setItem('zap', resultado.zap || '');
+            }
+        } catch(e) {
+            // Falha silenciosa — campos ficam vazios, usuário preenche manualmente
         }
     }
 
