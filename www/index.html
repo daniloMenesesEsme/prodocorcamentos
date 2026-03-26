@@ -109,6 +109,10 @@
     </div>
 
 <script>
+    // --- CONFIGURAÇÃO DO SERVIDOR ---
+    // IP do PC onde o Laragon está rodando. Altere se o IP mudar.
+    const SERVER_URL = 'http://192.168.0.5/prodocorcamentos/www';
+
     // --- INICIALIZAÇÃO ---
     window.onload = function() {
         const estaLogado = localStorage.getItem('logado');
@@ -151,7 +155,7 @@
         dados.append('whatsapp', zap);
 
         try {
-            const resposta = await fetch('api_cadastrar.php', {
+            const resposta = await fetch(`${SERVER_URL}/api_cadastrar.php`, {
                 method: 'POST',
                 body: dados
             });
@@ -182,7 +186,7 @@
         dados.append('senha', senha);
 
         try {
-            const resposta = await fetch('login.php', {
+            const resposta = await fetch(`${SERVER_URL}/login.php`, {
                 method: 'POST',
                 body: dados
             });
@@ -248,7 +252,7 @@
         dadosEnviados.append('zap', zap);
 
         try {
-            const resposta = await fetch('salvar_config.php', {
+            const resposta = await fetch(`${SERVER_URL}/salvar_config.php`, {
                 method: 'POST',
                 body: dadosEnviados
             });
