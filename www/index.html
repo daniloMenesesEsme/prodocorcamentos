@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProDoc Orçamentos</title>
+    
+    <!-- BIBLIOTECAS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="capacitor.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #e5ddd5; color: #333; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
+        h2 { color: #075e54; text-align: center; border-bottom: 2px solid #25d366; padding-bottom: 10px; margin-top: 10px; }
+        label { font-weight: bold; display: block; margin-top: 15px; font-size: 14px; }
+        input { width: 100%; padding: 12px; margin-top: 5px; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; }
+        
+        .btn-salvar { background: #34b7f1; color: white; border: none; padding: 10px; margin-top: 10px; cursor: pointer; border-radius: 5px; width: 100%; font-weight: bold; }
+        .btn-whatsapp { background: #25d366; color: white; border: none; padding: 15px; margin-top: 20px; cursor: pointer; border-radius: 5px; width: 100%; font-weight: bold; font-size: 16px; display: block; text-align: center; text-decoration: none; }
+        .btn-pdf { background: #007bff; color: white; border: none; padding: 15px; margin-top: 10px; cursor: pointer; border-radius: 5px; width: 100%; font-weight: bold; font-size: 16px; }
+        
+        hr { margin: 30px 0; border: 0; border-top: 1px dashed #ccc; }
+        .logo-preview { display: block; margin: 0 auto; width: 120px; }
+
+        /* Estilo para esconder as telas */
+        #telaPrincipal { display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. TELA DE LOGIN -->
+    <div id="telaLogin" class="card">
+        <img src="logo.png" alt="Logo" class="logo-preview">
+        <h2>Acessar ProDoc</h2>
+        <p style="text-align: center; font-size: 12px; color: #666;">Entre para gerenciar seus orçamentos</p>
+        
+        <label>Seu E-mail:</label>
+        <input type="email" id="loginEmail" placeholder="danilo@teste.com">
+        
+        <label>Sua Senha:</label>
+        <input type="password" id="loginSenha" placeholder="******">
+        
+        <button class="btn-whatsapp" onclick="fazerLogin()">ENTRAR NO SISTEMA</button>
+        
+        <p style="text-align: center; margin-top: 20px; font-size: 13px;">
+            Ainda não tem conta? <br>
+            <a href="#" onclick="alternarTelas('cadastro')" style="color: #34b7f1; font-weight: bold;">Cadastre-se para 7 dias grátis</a>
+        </p>
+    </div>
+
+    <!-- 3. TELA DE CADASTRO -->
+    <div id="telaCadastro" class="card" style="display: none;">
+        <img src="logo.png" alt="Logo" class="logo-preview">
+        <h2>Criar Minha Conta</h2>
+        <p style="text-align: center; font-size: 12px; color: #666;">Ganhe 7 dias de acesso grátis agora!</p>
+        
+        <label>Nome Completo:</label>
+        <input type="text" id="cadNome" placeholder="Seu Nome">
+
+        <label>Seu WhatsApp:</label>
+        <input type="text" id="cadZap" placeholder="85999999999">
+
+        <label>E-mail (Será seu login):</label>
+        <input type="email" id="cadEmail" placeholder="exemplo@email.com">
+        
+        <label>Crie uma Senha:</label>
+        <input type="password" id="cadSenha" placeholder="Mínimo 6 dígitos">
+        
+        <button class="btn-salvar" onclick="realizarCadastro()" style="background: #25d366; padding: 15px;">CRIAR CONTA E COMEÇAR</button>
+        
+        <p style="text-align: center; margin-top: 20px; font-size: 13px;">
+            Já tem conta? <a href="#" onclick="alternarTelas('login')" style="color: #34b7f1; font-weight: bold;">Voltar para o Login</a>
+        </p>
+    </div>
+
+    <!-- 2. TELA PRINCIPAL (GERADOR) -->
+    <div id="telaPrincipal">
+        <div class="card">
+            <img src="logo.png" alt="Logo" class="logo-preview">
+            <h2>ProDoc Orçamentos</h2>
+
+            <!-- SEÇÃO DA MEMÓRIA -->
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 8px;">
+                <p style="margin-top: 0; font-size: 12px; color: #666;">📝 MEUS DADOS (Ficam salvos)</p>
+                <label>Nome da Empresa/Seu Nome:</label>
+                <input type="text" id="minhaEmpresa" placeholder="Ex: Danilo Meneses">
+                <label>Seu WhatsApp (com DDD):</label>
+                <input type="text" id="meuZap" placeholder="Ex: 85998115669">
+                <button class="btn-salvar" onclick="salvarMeusDados()">SALVAR MEUS DADOS</button>
+                <button onclick="fazerLogout()" style="background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 6px; margin-top: 20px; cursor: pointer; border-radius: 8px; width: 100%; font-weight: bold; font-size: 14px; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 8px;">🚪</span> SAIR DO SISTEMA</button>
+            </div>
+
+            <hr>
+
+            <!-- SEÇÃO DO CLIENTE -->
+            <label>Nome do Cliente:</label>
+            <input type="text" id="cliente" placeholder="Nome de quem vai receber">
+
+            <label>Serviço Detalhado:</label>
+            <input type="text" id="servico" placeholder="O que será feito?">
+
+            <label>Valor Total (R$):</label>
+            <input type="number" id="valor" placeholder="Somente números">
+
+            <button class="btn-whatsapp" onclick="gerarOrcamento()">🚀 GERAR E ENVIAR WHATSAPP</button>
+            <button class="btn-pdf" onclick="gerarPDF()">📄 GERAR ORÇAMENTO EM PDF</button>
+        </div>
+    </div>
+
+<script>
+    // --- INICIALIZAÇÃO ---
+    window.onload = function() {
+        const estaLogado = localStorage.getItem('logado');
+        
+        if(estaLogado === 'sim') {
+            document.getElementById('telaLogin').style.display = 'none';
+            document.getElementById('telaPrincipal').style.display = 'block';
+            carregarDadosIniciais();
+        } else {
+            document.getElementById('telaLogin').style.display = 'block';
+            document.getElementById('telaPrincipal').style.display = 'none';
+        }
+    };
+
+    function alternarTelas(qual) {
+        document.getElementById('telaLogin').style.display = 'none';
+        document.getElementById('telaCadastro').style.display = 'none';
+        document.getElementById('telaPrincipal').style.display = 'none';
+
+        if(qual === 'login') document.getElementById('telaLogin').style.display = 'block';
+        if(qual === 'cadastro') document.getElementById('telaCadastro').style.display = 'block';
+        if(qual === 'principal') document.getElementById('telaPrincipal').style.display = 'block';
+    }
+
+    async function realizarCadastro() {
+        const nome = document.getElementById('cadNome').value;
+        const zap = document.getElementById('cadZap').value;
+        const email = document.getElementById('cadEmail').value;
+        const senha = document.getElementById('cadSenha').value;
+
+        if(!nome || !email || !senha) {
+            alert("Por favor, preencha Nome, E-mail e Senha!");
+            return;
+        }
+
+        let dados = new FormData();
+        dados.append('nome', nome);
+        dados.append('email', email);
+        dados.append('senha', senha);
+        dados.append('whatsapp', zap);
+
+        try {
+            const resposta = await fetch('api_cadastrar.php', {
+                method: 'POST',
+                body: dados
+            });
+            const resultado = await resposta.json();
+
+            if(resultado.status === "sucesso") {
+                alert("✅ Conta criada com sucesso! Agora faça seu login.");
+                alternarTelas('login');
+            } else {
+                alert("❌ Erro: " + resultado.mensagem);
+            }
+        } catch (error) {
+            alert("Erro na conexão com o servidor.");
+        }
+    }
+
+    async function fazerLogin() {
+        const email = document.getElementById('loginEmail').value;
+        const senha = document.getElementById('loginSenha').value;
+
+        if(email === "" || senha === "") {
+            alert("Por favor, preencha todos os campos!");
+            return;
+        }
+
+        let dados = new FormData();
+        dados.append('email', email);
+        dados.append('senha', senha);
+
+        try {
+            const resposta = await fetch('login.php', {
+                method: 'POST',
+                body: dados
+            });
+
+            const resultado = await resposta.json();
+
+            if(resultado.status === "sucesso") {
+                localStorage.clear();
+
+                if(!resultado.id) {
+                    alert("❌ Erro: servidor não retornou o ID do usuário. Contate o suporte.");
+                    return;
+                }
+
+                localStorage.setItem('usuario_id', resultado.id);
+                localStorage.setItem('usuario_nome', resultado.nome);
+                localStorage.setItem('logado', 'sim');
+                
+                alert("Bem-vindo, " + resultado.nome + "!");
+                
+                document.getElementById('telaLogin').style.display = 'none';
+                document.getElementById('telaPrincipal').style.display = 'block';
+                carregarDadosIniciais();
+            } 
+            else if(resultado.status === "expirado") {
+                alert("⚠️ " + resultado.mensagem);
+            } 
+            else {
+                alert("❌ " + resultado.mensagem);
+            }
+
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao conectar com o servidor.");
+        }
+    }
+
+    function carregarDadosIniciais() {
+        if(localStorage.getItem('empresa')) {
+            document.getElementById('minhaEmpresa').value = localStorage.getItem('empresa');
+            document.getElementById('meuZap').value = localStorage.getItem('zap');
+        }
+    }
+
+    async function salvarMeusDados() {
+        const empresa = document.getElementById('minhaEmpresa').value;
+        const zap = document.getElementById('meuZap').value;
+        const usuario_id = localStorage.getItem('usuario_id'); // Pegamos o ID de quem está logado
+
+        if(!usuario_id || usuario_id === 'undefined' || usuario_id === 'null' || isNaN(Number(usuario_id))) {
+            alert("Ops! Sessão inválida. Por favor, saia e faça login novamente.");
+            return;
+        }
+
+        // 1. Salva no navegador (LocalStorage) para uso imediato
+        localStorage.setItem('empresa', empresa);
+        localStorage.setItem('zap', zap);
+
+        // 2. Prepara os dados para enviar ao Banco de Dados via PHP
+        let dadosEnviados = new FormData();
+        dadosEnviados.append('usuario_id', usuario_id);
+        dadosEnviados.append('empresa', empresa);
+        dadosEnviados.append('zap', zap);
+
+        try {
+            const resposta = await fetch('salvar_config.php', {
+                method: 'POST',
+                body: dadosEnviados
+            });
+
+            const resultado = await resposta.json();
+
+            if(resultado.status === "sucesso") {
+                alert("✅ Sucesso! Dados salvos na sua conta do ProDoc.");
+            } else {
+                alert("❌ Erro ao salvar no servidor: " + resultado.mensagem);
+            }
+
+        } catch (erro) {
+            console.error(erro);
+            alert("Salvo apenas no celular. Não foi possível conectar ao servidor.");
+        }
+    }
+
+    function gerarOrcamento() {
+        const empresa = document.getElementById('minhaEmpresa').value;
+        const cliente = document.getElementById('cliente').value;
+        const servico = document.getElementById('servico').value;
+        const valor = document.getElementById('valor').value;
+        
+        const dataValidade = new Date();
+        dataValidade.setDate(dataValidade.getDate() + 7);
+        const validadeStr = dataValidade.toLocaleDateString('pt-BR');
+
+        const texto = `*📄 PRODOC ORÇAMENTOS*%0A` +
+                      `*Serviço Profissional Confirmado* ✅%0A` +
+                      `━━━━━━━━━━━━━━━━━━%0A` +
+                      `👤 *CLIENTE:* ${cliente}%0A` +
+                      `🏢 *PRESTADOR:* ${empresa}%0A` +
+                      `━━━━━━━━━━━━━━━━━━%0A%0A` + 
+                      `🛠️ *DETALHES DO SERVIÇO:*%0A${servico}%0A%0A` +
+                      `💰 *VALOR TOTAL:* R$ ${valor}%0A` +
+                      `📅 *VALIDADE DA PROPOSTA:* ${validadeStr}%0A` +
+                      `━━━━━━━━━━━━━━━━━━%0A` +
+                      `📌 *Para agendar, responda com "APROVADO"!*`;
+
+        const foneCliente = prompt("WhatsApp do Cliente (DDD + Número):", "85");
+        if(foneCliente) {
+            window.open(`https://wa.me/55${foneCliente}?text=${texto}`);
+        }
+    }
+
+    function gerarPDF() {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        if (isMobile) {
+            alert("Para PDF profissional, use o PC. No celular, use o WhatsApp!");
+            return;
+        }
+
+        const empresa = document.getElementById('minhaEmpresa').value;
+        const cliente = document.getElementById('cliente').value;
+        const servico = document.getElementById('servico').value;
+        const valor = document.getElementById('valor').value;
+        
+        const elementoParaPDF = document.createElement('div');
+        elementoParaPDF.innerHTML = `
+            <div style="padding: 40px; font-family: Arial;">
+                <h1 style="color: #075e54; text-align: center;">ORÇAMENTO PROFISSIONAL</h1>
+                <p><strong>PRESTADOR:</strong> ${empresa}</p>
+                <p><strong>CLIENTE:</strong> ${cliente}</p>
+                <hr>
+                <p><strong>SERVIÇO:</strong><br>${servico}</p>
+                <h2 style="text-align: right; color: #25d366;">TOTAL: R$ ${valor}</h2>
+            </div>
+        `;
+
+        html2pdf().from(elementoParaPDF).set({
+            margin: 1,
+            filename: `Orcamento_${cliente}.pdf`,
+            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+        }).save();
+    }
+
+    function fazerLogout() {
+        if(confirm("Deseja realmente sair?")) {
+            localStorage.removeItem('logado');
+            localStorage.removeItem('usuario_id');
+            localStorage.removeItem('usuario_nome');
+            location.reload();
+        }
+    }
+</script>
+
+</body>
+</html>

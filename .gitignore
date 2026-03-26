@@ -1,0 +1,25 @@
+# Dependências Node
+node_modules/
+
+# Arquivos de build Android
+android/.gradle/
+android/app/build/
+android/build/
+
+# Arquivo de SDK local (específico de cada máquina)
+android/local.properties
+
+# Arquivos gerados pelo Capacitor (copiados do www/)
+android/app/src/main/assets/public/
+
+# PDFs gerados
+*.pdf
+
+# Variáveis de ambiente e credenciais
+.env
+.env.local
+
+# IDEs
+.idea/
+*.iml
+.vscode/
