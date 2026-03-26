@@ -41,7 +41,7 @@
         <label>Sua Senha:</label>
         <input type="password" id="loginSenha" placeholder="******">
         
-        <button class="btn-whatsapp" onclick="fazerLogin()">ENTRAR NO SISTEMA</button>
+        <button id="btnLogin" class="btn-whatsapp" onclick="fazerLogin()">ENTRAR NO SISTEMA</button>
         
         <p style="text-align: center; margin-top: 20px; font-size: 13px;">
             Ainda não tem conta? <br>
@@ -67,7 +67,7 @@
         <label>Crie uma Senha:</label>
         <input type="password" id="cadSenha" placeholder="Mínimo 6 dígitos">
         
-        <button class="btn-salvar" onclick="realizarCadastro()" style="background: #25d366; padding: 15px;">CRIAR CONTA E COMEÇAR</button>
+        <button id="btnCadastro" class="btn-salvar" onclick="realizarCadastro()" style="background: #25d366; padding: 15px;">CRIAR CONTA E COMEÇAR</button>
         
         <p style="text-align: center; margin-top: 20px; font-size: 13px;">
             Já tem conta? <a href="#" onclick="alternarTelas('login')" style="color: #34b7f1; font-weight: bold;">Voltar para o Login</a>
@@ -88,7 +88,7 @@
                 <input type="text" id="minhaEmpresa" placeholder="Ex: Danilo Meneses">
                 <label>Seu WhatsApp (com DDD):</label>
                 <input type="text" id="meuZap" placeholder="Ex: 85998115669">
-                <button class="btn-salvar" onclick="salvarMeusDados()">SALVAR MEUS DADOS</button>
+                <button id="btnSalvar" class="btn-salvar" onclick="salvarMeusDados()">SALVAR MEUS DADOS</button>
                 <button onclick="fazerLogout()" style="background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 6px; margin-top: 20px; cursor: pointer; border-radius: 8px; width: 100%; font-weight: bold; font-size: 14px; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 8px;">🚪</span> SAIR DO SISTEMA</button>
             </div>
 
@@ -151,6 +151,10 @@
             return;
         }
 
+        const btn = document.getElementById('btnCadastro');
+        btn.disabled = true;
+        btn.textContent = 'Aguarde...';
+
         let dados = new FormData();
         dados.append('nome', nome);
         dados.append('email', email);
@@ -172,6 +176,9 @@
             }
         } catch (error) {
             alert("Erro na conexão com o servidor.");
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'CRIAR CONTA E COMEÇAR';
         }
     }
 
@@ -183,6 +190,10 @@
             alert("Por favor, preencha todos os campos!");
             return;
         }
+
+        const btn = document.getElementById('btnLogin');
+        btn.disabled = true;
+        btn.textContent = 'Aguarde...';
 
         let dados = new FormData();
         dados.append('email', email);
@@ -225,6 +236,9 @@
         } catch (error) {
             console.error(error);
             alert("Erro ao conectar com o servidor.");
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'ENTRAR NO SISTEMA';
         }
     }
 
@@ -250,6 +264,10 @@
             alert("Ops! Sessão inválida. Por favor, saia e faça login novamente.");
             return;
         }
+
+        const btn = document.getElementById('btnSalvar');
+        btn.disabled = true;
+        btn.textContent = 'Salvando...';
 
         // 1. Salva no navegador (LocalStorage) para uso imediato
         localStorage.setItem('empresa', empresa);
@@ -278,6 +296,9 @@
         } catch (erro) {
             console.error(erro);
             alert("Salvo apenas no celular. Não foi possível conectar ao servidor.");
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'SALVAR MEUS DADOS';
         }
     }
 
