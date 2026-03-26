@@ -30,6 +30,15 @@
         .btn-add-item { background: #6c757d; color: white; border: none; padding: 10px; margin-top: 8px; cursor: pointer; border-radius: 5px; width: 100%; font-weight: bold; }
         .total-box { background: #f0f7f0; padding: 10px 15px; border-radius: 5px; margin-top: 10px; text-align: right; font-size: 16px; color: #075e54; }
 
+        .btn-historico { background: #6c757d; color: white; border: none; padding: 10px; margin-top: 10px; cursor: pointer; border-radius: 5px; width: 100%; font-weight: bold; font-size: 14px; }
+        .btn-voltar { background: #6c757d; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 5px; font-weight: bold; margin-bottom: 15px; }
+        .historico-item { background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #25d366; }
+        .hi-header { display: flex; justify-content: space-between; align-items: center; }
+        .hi-cliente { font-weight: bold; color: #075e54; }
+        .hi-data { font-size: 11px; color: #999; }
+        .hi-total { color: #25d366; font-weight: bold; }
+        .hi-tipo { font-size: 11px; color: #666; }
+
         /* Estilo para esconder as telas */
         #telaPrincipal { display: none; }
     </style>
@@ -123,7 +132,15 @@
 
             <button class="btn-whatsapp" onclick="gerarOrcamento()">🚀 GERAR E ENVIAR WHATSAPP</button>
             <button class="btn-pdf" onclick="gerarPDF()">📄 GERAR ORÇAMENTO EM PDF</button>
+            <button class="btn-historico" onclick="verHistorico()">📋 VER HISTÓRICO</button>
         </div>
+    </div>
+
+    <!-- 4. TELA DE HISTÓRICO -->
+    <div id="telaHistorico" class="card" style="display: none;">
+        <button class="btn-voltar" onclick="alternarTelas('principal')">← Voltar</button>
+        <h2>📋 Histórico</h2>
+        <div id="listaHistorico"></div>
     </div>
 
 <script>
@@ -151,10 +168,12 @@
         document.getElementById('telaLogin').style.display = 'none';
         document.getElementById('telaCadastro').style.display = 'none';
         document.getElementById('telaPrincipal').style.display = 'none';
+        document.getElementById('telaHistorico').style.display = 'none';
 
         if(qual === 'login') document.getElementById('telaLogin').style.display = 'block';
         if(qual === 'cadastro') document.getElementById('telaCadastro').style.display = 'block';
         if(qual === 'principal') document.getElementById('telaPrincipal').style.display = 'block';
+        if(qual === 'historico') document.getElementById('telaHistorico').style.display = 'block';
     }
 
     async function realizarCadastro() {
@@ -417,6 +436,7 @@
         const foneCliente = prompt("WhatsApp do Cliente (DDD + Número):", "85");
         if(foneCliente) {
             window.open(`https://wa.me/55${foneCliente}?text=${texto}`);
+            salvarNoHistorico(cliente, itens, total, 'whatsapp');
         }
     }
 
@@ -474,6 +494,45 @@
             filename: `Orcamento_${cliente}.pdf`,
             jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
         }).save();
+        salvarNoHistorico(cliente, itens, total, 'pdf');
+    }
+
+    function salvarNoHistorico(cliente, itens, total, tipo) {
+        const historico = JSON.parse(localStorage.getItem('historico') || '[]');
+        const agora = new Date();
+        const dataStr = agora.toLocaleDateString('pt-BR') + ' ' +
+                        agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        historico.unshift({ data: dataStr, cliente, itens, total, tipo });
+        if(historico.length > 10) historico.pop();
+        localStorage.setItem('historico', JSON.stringify(historico));
+    }
+
+    function verHistorico() {
+        const historico = JSON.parse(localStorage.getItem('historico') || '[]');
+        const lista = document.getElementById('listaHistorico');
+
+        if(historico.length === 0) {
+            lista.innerHTML = '<p style="text-align:center;color:#999;margin-top:20px;">Nenhum orçamento gerado ainda.</p>';
+        } else {
+            lista.innerHTML = historico.map(h => {
+                const itensStr = h.itens.map(i => i.desc).join(', ');
+                const totalStr = Number(h.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                const tipoIcon = h.tipo === 'whatsapp' ? '📱 WhatsApp' : '📄 PDF';
+                return `
+                    <div class="historico-item">
+                        <div class="hi-header">
+                            <span class="hi-cliente">${h.cliente}</span>
+                            <span class="hi-data">${h.data}</span>
+                        </div>
+                        <div style="font-size:12px;color:#666;margin-top:4px;">${itensStr}</div>
+                        <div class="hi-header" style="margin-top:6px;">
+                            <span class="hi-total">R$ ${totalStr}</span>
+                            <span class="hi-tipo">${tipoIcon}</span>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+        alternarTelas('historico');
     }
 
     function fazerLogout() {
