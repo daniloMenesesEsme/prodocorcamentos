@@ -110,8 +110,9 @@
 
 <script>
     // --- CONFIGURAÇÃO DO SERVIDOR ---
-    // IP do PC onde o Laragon está rodando. Altere se o IP mudar.
-    const SERVER_URL = 'http://192.168.0.5/prodocorcamentos/www';
+    // No celular (app nativo) usa o IP do PC. No browser usa URL relativa.
+    const isNativeApp = window.Capacitor && window.Capacitor.isNativePlatform();
+    const SERVER_URL = isNativeApp ? 'http://192.168.0.5/prodocorcamentos/www' : '';
 
     // --- INICIALIZAÇÃO ---
     window.onload = function() {
