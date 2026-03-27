@@ -43,6 +43,20 @@
         .hi-total { color: #25d366; font-weight: bold; }
         .hi-tipo { font-size: 11px; color: #666; }
 
+        .produto-item { display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; padding:10px 12px; border-radius:8px; margin-bottom:8px; border-left:4px solid #34b7f1; }
+        .produto-info { flex:1; }
+        .produto-nome { font-weight:bold; color:#075e54; font-size:14px; }
+        .produto-detalhe { font-size:12px; color:#888; margin-top:2px; }
+        .produto-acoes { display:flex; gap:6px; }
+        .btn-editar { background:#ffc107; color:#333; border:none; border-radius:5px; padding:6px 10px; cursor:pointer; font-size:13px; font-weight:bold; }
+        .btn-excluir { background:#dc3545; color:white; border:none; border-radius:5px; padding:6px 10px; cursor:pointer; font-size:13px; font-weight:bold; }
+        .btn-catalogo { background:#17a2b8; color:white; border:none; padding:10px; margin-top:8px; cursor:pointer; border-radius:5px; width:100%; font-weight:bold; }
+        select { width:100%; padding:12px; margin-top:5px; border-radius:5px; border:1px solid #ddd; box-sizing:border-box; background:white; font-size:14px; }
+        .form-produto { background:#f0f7ff; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #b8daff; }
+        #overlayCatalogo { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; overflow-y:auto; padding:20px; }
+        .catalogo-item { display:flex; justify-content:space-between; align-items:center; background:white; padding:12px; border-radius:8px; margin-bottom:8px; cursor:pointer; border:2px solid transparent; }
+        .catalogo-item:active { border-color:#25d366; }
+
         /* Estilo para esconder as telas */
         #telaPrincipal { display: none; }
     </style>
@@ -129,6 +143,7 @@
                 </div>
             </div>
             <button class="btn-add-item" onclick="adicionarItem()">+ Adicionar Item</button>
+            <button class="btn-catalogo" onclick="abrirCatalogo()">📦 Adicionar do Catálogo</button>
             <div class="total-box">Total: R$ <strong id="totalGeral">0,00</strong></div>
 
             <label>Validade da proposta (dias):</label>
@@ -196,9 +211,59 @@
         <button class="nav-btn" id="navEmpresa" onclick="abrirEmpresa()">
             🏢<br><small>Empresa</small>
         </button>
+        <button class="nav-btn" id="navProdutos" onclick="abrirProdutos()">
+            📦<br><small>Catálogo</small>
+        </button>
         <button class="nav-btn" id="navHistorico" onclick="verHistorico()">
             📋<br><small>Histórico</small>
         </button>
+    </div>
+
+    <!-- 6. TELA DE PRODUTOS E SERVIÇOS -->
+    <div id="telaProdutos" class="card" style="display:none;">
+        <h2>📦 Catálogo</h2>
+
+        <!-- Formulário (oculto por padrão) -->
+        <div id="formProduto" class="form-produto" style="display:none;">
+            <input type="hidden" id="prodId">
+            <label>Nome do Produto/Serviço:</label>
+            <input type="text" id="prodNome" placeholder="Ex: Instalação elétrica">
+            <label>Preço (R$):</label>
+            <input type="number" id="prodPreco" placeholder="0.00" step="0.01" min="0">
+            <label>Unidade:</label>
+            <select id="prodUnidade">
+                <option value="un">Unidade (un)</option>
+                <option value="h">Hora (h)</option>
+                <option value="m²">Metro quadrado (m²)</option>
+                <option value="m">Metro (m)</option>
+                <option value="kg">Quilograma (kg)</option>
+                <option value="dia">Diária (dia)</option>
+                <option value="serv">Serviço (serv)</option>
+            </select>
+            <label>Categoria:</label>
+            <select id="prodCategoria">
+                <option value="servico">Serviço</option>
+                <option value="produto">Produto</option>
+            </select>
+            <label>Descrição (opcional):</label>
+            <input type="text" id="prodDescricao" placeholder="Detalhes adicionais...">
+            <div style="display:flex;gap:8px;margin-top:12px;">
+                <button id="btnSalvarProduto" onclick="salvarProduto()" class="btn-salvar" style="flex:1;padding:12px;">SALVAR</button>
+                <button onclick="fecharFormProduto()" class="btn-voltar" style="margin-bottom:0;">CANCELAR</button>
+            </div>
+        </div>
+
+        <button onclick="mostrarFormProduto()" class="btn-salvar" style="background:#25d366;padding:12px;margin-bottom:5px;">+ NOVO PRODUTO/SERVIÇO</button>
+        <div id="listaProdutos" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- OVERLAY DO CATÁLOGO (para uso no orçamento) -->
+    <div id="overlayCatalogo">
+        <div style="background:white;border-radius:10px;padding:20px;max-width:500px;margin:0 auto;">
+            <h3 style="color:#075e54;margin-top:0;">📦 Selecionar do Catálogo</h3>
+            <div id="listaCatalogo"></div>
+            <button onclick="fecharCatalogo()" class="btn-voltar" style="width:100%;margin-top:10px;text-align:center;">✕ Fechar</button>
+        </div>
     </div>
 
 <script>
@@ -219,11 +284,11 @@
     };
 
     function alternarTelas(qual) {
-        ['telaLogin','telaCadastro','telaPrincipal','telaHistorico','telaEmpresa'].forEach(id => {
+        ['telaLogin','telaCadastro','telaPrincipal','telaHistorico','telaEmpresa','telaProdutos'].forEach(id => {
             document.getElementById(id).style.display = 'none';
         });
 
-        const telasLogadas = ['principal','empresa','historico'];
+        const telasLogadas = ['principal','empresa','historico','produtos'];
         document.getElementById('bottomNav').style.display = telasLogadas.includes(qual) ? 'flex' : 'none';
 
         if(qual === 'login')     document.getElementById('telaLogin').style.display = 'block';
@@ -231,13 +296,14 @@
         if(qual === 'principal') document.getElementById('telaPrincipal').style.display = 'block';
         if(qual === 'historico') document.getElementById('telaHistorico').style.display = 'block';
         if(qual === 'empresa')   document.getElementById('telaEmpresa').style.display = 'block';
+        if(qual === 'produtos')  document.getElementById('telaProdutos').style.display = 'block';
 
-        // Atualiza botão ativo no menu
-        ['navInicio','navEmpresa','navHistorico'].forEach(id => {
+        ['navInicio','navEmpresa','navProdutos','navHistorico'].forEach(id => {
             document.getElementById(id).classList.remove('ativo');
         });
         if(qual === 'principal') document.getElementById('navInicio').classList.add('ativo');
         if(qual === 'empresa')   document.getElementById('navEmpresa').classList.add('ativo');
+        if(qual === 'produtos')  document.getElementById('navProdutos').classList.add('ativo');
         if(qual === 'historico') document.getElementById('navHistorico').classList.add('ativo');
     }
 
@@ -543,6 +609,183 @@
             btn.textContent = 'SALVAR DADOS DA EMPRESA';
         }
     }
+
+    // ---- PRODUTOS E SERVIÇOS ----
+    let cacheProdutos = [];
+
+    async function abrirProdutos() {
+        alternarTelas('produtos');
+        fecharFormProduto();
+        await carregarProdutos();
+    }
+
+    async function carregarProdutos() {
+        const usuario_id = localStorage.getItem('usuario_id');
+        if(!usuario_id) return;
+        const dados = new FormData();
+        dados.append('usuario_id', usuario_id);
+        try {
+            const res = await fetch(`${SERVER_URL}/listar_produtos.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if(json.status === 'sucesso') {
+                cacheProdutos = json.produtos;
+                renderizarProdutos(json.produtos);
+            }
+        } catch(e) {
+            document.getElementById('listaProdutos').innerHTML = '<p style="color:#999;text-align:center;">Erro ao carregar catálogo.</p>';
+        }
+    }
+
+    function renderizarProdutos(produtos) {
+        const lista = document.getElementById('listaProdutos');
+        if(produtos.length === 0) {
+            lista.innerHTML = '<p style="color:#999;text-align:center;margin-top:20px;">Nenhum item no catálogo ainda.<br>Clique em "+ NOVO" para começar.</p>';
+            return;
+        }
+        const categorias = { servico: '🔧 Serviços', produto: '📦 Produtos' };
+        let html = '';
+        ['servico','produto'].forEach(cat => {
+            const itens = produtos.filter(p => p.categoria === cat);
+            if(itens.length === 0) return;
+            html += `<p style="font-weight:bold;color:#075e54;margin:10px 0 5px;">${categorias[cat]}</p>`;
+            itens.forEach(p => {
+                const precoStr = Number(p.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                html += `
+                    <div class="produto-item">
+                        <div class="produto-info">
+                            <div class="produto-nome">${p.nome}</div>
+                            <div class="produto-detalhe">R$ ${precoStr} / ${p.unidade}${p.descricao ? ' — ' + p.descricao : ''}</div>
+                        </div>
+                        <div class="produto-acoes">
+                            <button class="btn-editar" onclick="editarProduto(${p.id})">✏️</button>
+                            <button class="btn-excluir" onclick="confirmarExcluir(${p.id}, '${p.nome.replace(/'/g,"\\'")}')">🗑️</button>
+                        </div>
+                    </div>`;
+            });
+        });
+        lista.innerHTML = html;
+    }
+
+    function mostrarFormProduto(produto = null) {
+        document.getElementById('prodId').value        = produto ? produto.id : '';
+        document.getElementById('prodNome').value      = produto ? produto.nome : '';
+        document.getElementById('prodPreco').value     = produto ? produto.preco : '';
+        document.getElementById('prodUnidade').value   = produto ? produto.unidade : 'un';
+        document.getElementById('prodCategoria').value = produto ? produto.categoria : 'servico';
+        document.getElementById('prodDescricao').value = produto ? produto.descricao : '';
+        document.getElementById('formProduto').style.display = 'block';
+        document.getElementById('prodNome').focus();
+    }
+
+    function fecharFormProduto() {
+        document.getElementById('formProduto').style.display = 'none';
+    }
+
+    function editarProduto(id) {
+        const produto = cacheProdutos.find(p => p.id == id);
+        if(produto) mostrarFormProduto(produto);
+        window.scrollTo(0, 0);
+    }
+
+    async function salvarProduto() {
+        const nome  = document.getElementById('prodNome').value.trim();
+        const preco = document.getElementById('prodPreco').value;
+        if(!nome) { alert('O nome é obrigatório.'); return; }
+        if(preco === '' || isNaN(preco)) { alert('Informe um preço válido.'); return; }
+
+        const btn = document.getElementById('btnSalvarProduto');
+        btn.disabled = true; btn.textContent = 'Salvando...';
+
+        const dados = new FormData();
+        dados.append('usuario_id', localStorage.getItem('usuario_id'));
+        dados.append('id',         document.getElementById('prodId').value);
+        dados.append('nome',       nome);
+        dados.append('preco',      preco);
+        dados.append('unidade',    document.getElementById('prodUnidade').value);
+        dados.append('categoria',  document.getElementById('prodCategoria').value);
+        dados.append('descricao',  document.getElementById('prodDescricao').value.trim());
+
+        try {
+            const res  = await fetch(`${SERVER_URL}/salvar_produto.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if(json.status === 'sucesso') {
+                fecharFormProduto();
+                await carregarProdutos();
+            } else {
+                alert('❌ ' + json.mensagem);
+            }
+        } catch(e) {
+            alert('Erro na conexão com o servidor.');
+        } finally {
+            btn.disabled = false; btn.textContent = 'SALVAR';
+        }
+    }
+
+    async function confirmarExcluir(id, nome) {
+        if(!confirm(`Excluir "${nome}"?`)) return;
+        const dados = new FormData();
+        dados.append('usuario_id', localStorage.getItem('usuario_id'));
+        dados.append('id', id);
+        try {
+            const res  = await fetch(`${SERVER_URL}/excluir_produto.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if(json.status === 'sucesso') {
+                await carregarProdutos();
+            } else {
+                alert('❌ ' + json.mensagem);
+            }
+        } catch(e) {
+            alert('Erro na conexão com o servidor.');
+        }
+    }
+
+    async function abrirCatalogo() {
+        const dados = new FormData();
+        dados.append('usuario_id', localStorage.getItem('usuario_id'));
+        try {
+            const res  = await fetch(`${SERVER_URL}/listar_produtos.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            const lista = document.getElementById('listaCatalogo');
+            if(json.status !== 'sucesso' || json.produtos.length === 0) {
+                lista.innerHTML = '<p style="text-align:center;color:#999;">Catálogo vazio. Cadastre itens em 📦 Catálogo.</p>';
+            } else {
+                lista.innerHTML = json.produtos.map(p => {
+                    const precoStr = Number(p.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                    return `
+                        <div class="catalogo-item" onclick="selecionarDoCatalogo('${p.nome.replace(/'/g,"\\'")}', ${p.preco})">
+                            <div>
+                                <div style="font-weight:bold;color:#075e54;">${p.nome}</div>
+                                <div style="font-size:12px;color:#888;">${p.descricao || ''}</div>
+                            </div>
+                            <div style="font-weight:bold;color:#25d366;white-space:nowrap;">R$ ${precoStr}/${p.unidade}</div>
+                        </div>`;
+                }).join('');
+            }
+        } catch(e) {
+            document.getElementById('listaCatalogo').innerHTML = '<p style="color:red;">Erro ao carregar catálogo.</p>';
+        }
+        document.getElementById('overlayCatalogo').style.display = 'block';
+    }
+
+    function selecionarDoCatalogo(nome, preco) {
+        const lista = document.getElementById('listaItens');
+        const div = document.createElement('div');
+        div.className = 'item-orcamento';
+        div.innerHTML = `
+            <input type="text" class="item-desc" placeholder="Descrição do serviço/item" value="${nome}" style="width:100%;padding:12px;margin-top:0;border-radius:5px;border:1px solid #ddd;box-sizing:border-box;">
+            <div class="item-row">
+                <input type="number" class="item-valor" placeholder="Valor (R$)" value="${preco}" oninput="calcularTotal()" style="padding:12px;border-radius:5px;border:1px solid #ddd;box-sizing:border-box;">
+                <button class="btn-remover" onclick="removerItem(this)">✕</button>
+            </div>`;
+        lista.appendChild(div);
+        calcularTotal();
+        fecharCatalogo();
+    }
+
+    function fecharCatalogo() {
+        document.getElementById('overlayCatalogo').style.display = 'none';
+    }
+    // ---- FIM PRODUTOS E SERVIÇOS ----
 
     function adicionarItem() {
         const lista = document.getElementById('listaItens');
