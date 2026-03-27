@@ -5,9 +5,17 @@ header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 require_once 'config.php';
 
-// Pegando os dados enviados pelo App
-$email = $_POST['email'] ?? '';
-$senha = $_POST['senha'] ?? '';
+$email = trim($_POST['email'] ?? '');
+$senha =      $_POST['senha'] ?? '';
+
+if(!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    echo json_encode(["status" => "erro", "mensagem" => "E-mail inválido."]);
+    exit;
+}
+if(empty($senha)) {
+    echo json_encode(["status" => "erro", "mensagem" => "Senha não informada."]);
+    exit;
+}
 
 try {
     $sql = "SELECT * FROM usuarios WHERE email = :email";

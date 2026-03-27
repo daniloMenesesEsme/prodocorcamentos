@@ -5,12 +5,30 @@ header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 require_once 'config.php';
 
-$nome = $_POST['nome'] ?? '';
-$email = $_POST['email'] ?? '';
-$senha = password_hash($_POST['senha'] ?? '', PASSWORD_DEFAULT);
-$zap = $_POST['whatsapp'] ?? '';
+$nome  = trim($_POST['nome']      ?? '');
+$email = trim($_POST['email']     ?? '');
+$senha =      $_POST['senha']     ?? '';
+$zap   = preg_replace('/\D/', '', $_POST['whatsapp'] ?? '');
 
-// Calcula 7 dias grátis
+// Validações
+if(strlen($nome) < 3) {
+    echo json_encode(["status" => "erro", "mensagem" => "Nome deve ter pelo menos 3 caracteres."]);
+    exit;
+}
+if(!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    echo json_encode(["status" => "erro", "mensagem" => "E-mail inválido."]);
+    exit;
+}
+if(strlen($senha) < 6) {
+    echo json_encode(["status" => "erro", "mensagem" => "A senha deve ter pelo menos 6 caracteres."]);
+    exit;
+}
+if(!empty($zap) && !preg_match('/^\d{10,11}$/', $zap)) {
+    echo json_encode(["status" => "erro", "mensagem" => "WhatsApp inválido. Use DDD + número (10 ou 11 dígitos)."]);
+    exit;
+}
+
+$senha_hash  = password_hash($senha, PASSWORD_DEFAULT);
 $data_expira = (new DateTime())->modify('+7 days')->format('Y-m-d H:i:s');
 
 try {
@@ -21,7 +39,7 @@ try {
     $stmt->execute([
         ':nome' => $nome,
         ':email' => $email,
-        ':senha' => $senha,
+        ':senha' => $senha_hash,
         ':zap' => $zap,
         ':expira' => $data_expira
     ]);

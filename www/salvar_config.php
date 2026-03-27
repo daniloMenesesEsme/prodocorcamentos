@@ -5,13 +5,20 @@ header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 require_once 'config.php';
 
-// Pegando os dados que o JavaScript vai enviar
 $usuario_id = $_POST['usuario_id'] ?? '';
-$empresa = $_POST['empresa'] ?? '';
-$zap = $_POST['zap'] ?? '';
+$empresa    = trim($_POST['empresa'] ?? '');
+$zap        = preg_replace('/\D/', '', $_POST['zap'] ?? '');
 
-if (!$usuario_id) {
+if(!$usuario_id || !is_numeric($usuario_id)) {
     echo json_encode(["status" => "erro", "mensagem" => "Usuário não identificado no sistema."]);
+    exit;
+}
+if(empty($empresa)) {
+    echo json_encode(["status" => "erro", "mensagem" => "O nome da empresa não pode estar vazio."]);
+    exit;
+}
+if(!empty($zap) && !preg_match('/^\d{10,11}$/', $zap)) {
+    echo json_encode(["status" => "erro", "mensagem" => "WhatsApp inválido. Use DDD + número (10 ou 11 dígitos)."]);
     exit;
 }
 
