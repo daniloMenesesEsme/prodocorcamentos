@@ -153,7 +153,10 @@
         <input type="text" id="empNome" placeholder="Ex: Danilo Serviços">
 
         <label>CNPJ ou CPF:</label>
-        <input type="text" id="empCnpj" placeholder="Ex: 00.000.000/0001-00">
+        <div style="display:flex;gap:8px;margin-top:5px;">
+            <input type="text" id="empCnpj" placeholder="Ex: 00.000.000/0001-00" style="margin-top:0;flex:1;">
+            <button id="btnBuscarCnpj" onclick="buscarCNPJ()" class="btn-salvar" style="margin-top:0;width:auto;padding:0 14px;">🔍</button>
+        </div>
 
         <label>WhatsApp (com DDD):</label>
         <input type="text" id="empWhatsapp" placeholder="Ex: 85999999999">
@@ -162,7 +165,7 @@
         <input type="email" id="empEmail" placeholder="contato@empresa.com">
 
         <label>CEP:</label>
-        <input type="text" id="empCep" placeholder="00000-000" maxlength="9">
+        <input type="text" id="empCep" placeholder="00000-000" maxlength="9" oninput="buscarCEP()">
 
         <label>Endereço:</label>
         <input type="text" id="empEndereco" placeholder="Rua, Avenida...">
@@ -447,6 +450,59 @@
                 document.getElementById('empSite').value      = e.site           || '';
             }
         } catch(e) { /* Falha silenciosa */ }
+    }
+
+    async function buscarCEP() {
+        const cep = document.getElementById('empCep').value.replace(/\D/g, '');
+        if(cep.length !== 8) return;
+
+        try {
+            const resposta = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+            const dados = await resposta.json();
+            if(dados.erro) { alert('CEP não encontrado.'); return; }
+            document.getElementById('empEndereco').value = dados.logradouro || '';
+            document.getElementById('empBairro').value   = dados.bairro     || '';
+            document.getElementById('empCidade').value   = dados.localidade || '';
+            document.getElementById('empEstado').value   = dados.uf         || '';
+            document.getElementById('empNumero').focus();
+        } catch(e) {
+            alert('Não foi possível consultar o CEP. Verifique sua conexão.');
+        }
+    }
+
+    async function buscarCNPJ() {
+        const cnpj = document.getElementById('empCnpj').value.replace(/\D/g, '');
+        if(cnpj.length !== 14) {
+            alert('Digite um CNPJ válido com 14 dígitos antes de buscar.');
+            return;
+        }
+
+        const btn = document.getElementById('btnBuscarCnpj');
+        btn.textContent = '⏳';
+        btn.disabled = true;
+
+        try {
+            const resposta = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+            if(!resposta.ok) throw new Error('Não encontrado');
+            const d = await resposta.json();
+
+            document.getElementById('empNome').value     = d.nome_fantasia || d.razao_social || '';
+            document.getElementById('empEmail').value    = d.email         || '';
+            document.getElementById('empWhatsapp').value = (d.ddd_telefone_1 || '').replace(/\D/g, '');
+            document.getElementById('empCep').value      = (d.cep || '').replace(/\D/g, '');
+            document.getElementById('empEndereco').value = d.logradouro    || '';
+            document.getElementById('empNumero').value   = d.numero        || '';
+            document.getElementById('empBairro').value   = d.bairro        || '';
+            document.getElementById('empCidade').value   = d.municipio     || '';
+            document.getElementById('empEstado').value   = d.uf            || '';
+
+            alert('✅ Dados do CNPJ carregados! Confira e salve.');
+        } catch(e) {
+            alert('CNPJ não encontrado ou serviço indisponível. Preencha manualmente.');
+        } finally {
+            btn.textContent = '🔍';
+            btn.disabled = false;
+        }
     }
 
     async function salvarEmpresa() {
