@@ -10,7 +10,11 @@
     <script src="capacitor.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #e5ddd5; color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px 20px 80px; background: #e5ddd5; color: #333; }
+        #bottomNav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 2px solid #25d366; display: none; justify-content: space-around; padding: 6px 0; z-index: 100; }
+        .nav-btn { background: none; border: none; cursor: pointer; font-size: 22px; color: #aaa; padding: 4px 20px; display: flex; flex-direction: column; align-items: center; }
+        .nav-btn small { font-size: 10px; margin-top: 2px; font-weight: bold; }
+        .nav-btn.ativo { color: #075e54; }
         .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
         h2 { color: #075e54; text-align: center; border-bottom: 2px solid #25d366; padding-bottom: 10px; margin-top: 10px; }
         label { font-weight: bold; display: block; margin-top: 15px; font-size: 14px; }
@@ -132,15 +136,66 @@
 
             <button class="btn-whatsapp" onclick="gerarOrcamento()">🚀 GERAR E ENVIAR WHATSAPP</button>
             <button class="btn-pdf" onclick="gerarPDF()">📄 GERAR ORÇAMENTO EM PDF</button>
-            <button class="btn-historico" onclick="verHistorico()">📋 VER HISTÓRICO</button>
         </div>
     </div>
 
     <!-- 4. TELA DE HISTÓRICO -->
     <div id="telaHistorico" class="card" style="display: none;">
-        <button class="btn-voltar" onclick="alternarTelas('principal')">← Voltar</button>
         <h2>📋 Histórico</h2>
         <div id="listaHistorico"></div>
+    </div>
+
+    <!-- 5. TELA DA EMPRESA -->
+    <div id="telaEmpresa" class="card" style="display: none;">
+        <h2>🏢 Minha Empresa</h2>
+
+        <label>Nome Fantasia / Seu Nome:</label>
+        <input type="text" id="empNome" placeholder="Ex: Danilo Serviços">
+
+        <label>CNPJ ou CPF:</label>
+        <input type="text" id="empCnpj" placeholder="Ex: 00.000.000/0001-00">
+
+        <label>WhatsApp (com DDD):</label>
+        <input type="text" id="empWhatsapp" placeholder="Ex: 85999999999">
+
+        <label>E-mail da Empresa:</label>
+        <input type="email" id="empEmail" placeholder="contato@empresa.com">
+
+        <label>CEP:</label>
+        <input type="text" id="empCep" placeholder="00000-000" maxlength="9">
+
+        <label>Endereço:</label>
+        <input type="text" id="empEndereco" placeholder="Rua, Avenida...">
+
+        <label>Número:</label>
+        <input type="text" id="empNumero" placeholder="Ex: 123">
+
+        <label>Bairro:</label>
+        <input type="text" id="empBairro" placeholder="Ex: Centro">
+
+        <label>Cidade:</label>
+        <input type="text" id="empCidade" placeholder="Ex: Fortaleza">
+
+        <label>Estado (UF):</label>
+        <input type="text" id="empEstado" placeholder="Ex: CE" maxlength="2">
+
+        <label>Site (opcional):</label>
+        <input type="url" id="empSite" placeholder="https://seusite.com.br">
+
+        <button id="btnSalvarEmpresa" class="btn-salvar" onclick="salvarEmpresa()" style="margin-top:20px;padding:15px;background:#25d366;">SALVAR DADOS DA EMPRESA</button>
+    </div>
+
+    <!-- MENU DE NAVEGAÇÃO INFERIOR -->
+    <div id="bottomNav">
+        <button class="nav-btn ativo" id="navInicio" onclick="alternarTelas('principal')">
+            🏠<br><small>Início</small>
+        </button>
+        <button class="nav-btn" id="navEmpresa" onclick="abrirEmpresa()">
+            🏢<br><small>Empresa</small>
+        </button>
+        <button class="nav-btn" id="navHistorico" onclick="verHistorico()">
+            📋<br><small>Histórico</small>
+        </button>
     </div>
 
 <script>
@@ -152,28 +207,35 @@
 
     // --- INICIALIZAÇÃO ---
     window.onload = function() {
-        const estaLogado = localStorage.getItem('logado');
-        
-        if(estaLogado === 'sim') {
-            document.getElementById('telaLogin').style.display = 'none';
-            document.getElementById('telaPrincipal').style.display = 'block';
+        if(localStorage.getItem('logado') === 'sim') {
+            alternarTelas('principal');
             carregarDadosIniciais();
         } else {
-            document.getElementById('telaLogin').style.display = 'block';
-            document.getElementById('telaPrincipal').style.display = 'none';
+            alternarTelas('login');
         }
     };
 
     function alternarTelas(qual) {
-        document.getElementById('telaLogin').style.display = 'none';
-        document.getElementById('telaCadastro').style.display = 'none';
-        document.getElementById('telaPrincipal').style.display = 'none';
-        document.getElementById('telaHistorico').style.display = 'none';
+        ['telaLogin','telaCadastro','telaPrincipal','telaHistorico','telaEmpresa'].forEach(id => {
+            document.getElementById(id).style.display = 'none';
+        });
 
-        if(qual === 'login') document.getElementById('telaLogin').style.display = 'block';
-        if(qual === 'cadastro') document.getElementById('telaCadastro').style.display = 'block';
+        const telasLogadas = ['principal','empresa','historico'];
+        document.getElementById('bottomNav').style.display = telasLogadas.includes(qual) ? 'flex' : 'none';
+
+        if(qual === 'login')     document.getElementById('telaLogin').style.display = 'block';
+        if(qual === 'cadastro')  document.getElementById('telaCadastro').style.display = 'block';
         if(qual === 'principal') document.getElementById('telaPrincipal').style.display = 'block';
         if(qual === 'historico') document.getElementById('telaHistorico').style.display = 'block';
+        if(qual === 'empresa')   document.getElementById('telaEmpresa').style.display = 'block';
+
+        // Atualiza botão ativo no menu
+        ['navInicio','navEmpresa','navHistorico'].forEach(id => {
+            document.getElementById(id).classList.remove('ativo');
+        });
+        if(qual === 'principal') document.getElementById('navInicio').classList.add('ativo');
+        if(qual === 'empresa')   document.getElementById('navEmpresa').classList.add('ativo');
+        if(qual === 'historico') document.getElementById('navHistorico').classList.add('ativo');
     }
 
     async function realizarCadastro() {
@@ -258,8 +320,7 @@
                 
                 alert("Bem-vindo, " + resultado.nome + "!");
                 
-                document.getElementById('telaLogin').style.display = 'none';
-                document.getElementById('telaPrincipal').style.display = 'block';
+                alternarTelas('principal');
                 carregarDadosIniciais();
             } 
             else if(resultado.status === "expirado") {
@@ -359,6 +420,71 @@
         } finally {
             btn.disabled = false;
             btn.textContent = 'SALVAR MEUS DADOS';
+        }
+    }
+
+    async function abrirEmpresa() {
+        alternarTelas('empresa');
+        const usuario_id = localStorage.getItem('usuario_id');
+        if(!usuario_id) return;
+        try {
+            const dados = new FormData();
+            dados.append('usuario_id', usuario_id);
+            const resposta = await fetch(`${SERVER_URL}/buscar_empresa.php`, { method: 'POST', body: dados });
+            const resultado = await resposta.json();
+            if(resultado.status === 'sucesso') {
+                const e = resultado.empresa;
+                document.getElementById('empNome').value      = e.nome_fantasia || '';
+                document.getElementById('empCnpj').value      = e.cnpj_cpf      || '';
+                document.getElementById('empWhatsapp').value  = e.whatsapp       || '';
+                document.getElementById('empEmail').value     = e.email          || '';
+                document.getElementById('empCep').value       = e.cep            || '';
+                document.getElementById('empEndereco').value  = e.endereco       || '';
+                document.getElementById('empNumero').value    = e.numero         || '';
+                document.getElementById('empBairro').value    = e.bairro         || '';
+                document.getElementById('empCidade').value    = e.cidade         || '';
+                document.getElementById('empEstado').value    = e.estado         || '';
+                document.getElementById('empSite').value      = e.site           || '';
+            }
+        } catch(e) { /* Falha silenciosa */ }
+    }
+
+    async function salvarEmpresa() {
+        const nome = document.getElementById('empNome').value.trim();
+        if(!nome) { alert('O nome da empresa/prestador é obrigatório.'); return; }
+
+        const btn = document.getElementById('btnSalvarEmpresa');
+        btn.disabled = true;
+        btn.textContent = 'Salvando...';
+
+        const usuario_id = localStorage.getItem('usuario_id');
+        const dados = new FormData();
+        dados.append('usuario_id',   usuario_id);
+        dados.append('nome_fantasia', nome);
+        dados.append('cnpj_cpf',     document.getElementById('empCnpj').value.trim());
+        dados.append('whatsapp',     document.getElementById('empWhatsapp').value.trim());
+        dados.append('email',        document.getElementById('empEmail').value.trim());
+        dados.append('cep',          document.getElementById('empCep').value.trim());
+        dados.append('endereco',     document.getElementById('empEndereco').value.trim());
+        dados.append('numero',       document.getElementById('empNumero').value.trim());
+        dados.append('bairro',       document.getElementById('empBairro').value.trim());
+        dados.append('cidade',       document.getElementById('empCidade').value.trim());
+        dados.append('estado',       document.getElementById('empEstado').value.trim().toUpperCase());
+        dados.append('site',         document.getElementById('empSite').value.trim());
+
+        try {
+            const resposta = await fetch(`${SERVER_URL}/salvar_empresa.php`, { method: 'POST', body: dados });
+            const resultado = await resposta.json();
+            if(resultado.status === 'sucesso') {
+                alert('✅ Dados da empresa salvos com sucesso!');
+            } else {
+                alert('❌ Erro: ' + resultado.mensagem);
+            }
+        } catch(e) {
+            alert('Erro na conexão com o servidor.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'SALVAR DADOS DA EMPRESA';
         }
     }
 
