@@ -497,42 +497,76 @@
         salvarNoHistorico(cliente, itens, total, 'pdf');
     }
 
-    function salvarNoHistorico(cliente, itens, total, tipo) {
+    async function salvarNoHistorico(cliente, itens, total, tipo) {
+        // 1. Salva no localStorage (funciona offline)
         const historico = JSON.parse(localStorage.getItem('historico') || '[]');
         const agora = new Date();
         const dataStr = agora.toLocaleDateString('pt-BR') + ' ' +
                         agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         historico.unshift({ data: dataStr, cliente, itens, total, tipo });
-        if(historico.length > 10) historico.pop();
+        if(historico.length > 50) historico.pop();
         localStorage.setItem('historico', JSON.stringify(historico));
+
+        // 2. Salva no banco de dados
+        const usuario_id = localStorage.getItem('usuario_id');
+        if(!usuario_id) return;
+        try {
+            const dados = new FormData();
+            dados.append('usuario_id', usuario_id);
+            dados.append('cliente', cliente);
+            dados.append('itens', JSON.stringify(itens));
+            dados.append('total', total);
+            dados.append('tipo', tipo);
+            await fetch(`${SERVER_URL}/salvar_orcamento.php`, { method: 'POST', body: dados });
+        } catch(e) {
+            // Falha silenciosa — já está salvo no localStorage
+        }
     }
 
-    function verHistorico() {
-        const historico = JSON.parse(localStorage.getItem('historico') || '[]');
+    async function verHistorico() {
+        alternarTelas('historico');
         const lista = document.getElementById('listaHistorico');
+        lista.innerHTML = '<p style="text-align:center;color:#999;">Carregando...</p>';
+
+        const usuario_id = localStorage.getItem('usuario_id');
+        let historico = [];
+
+        if(usuario_id) {
+            try {
+                const dados = new FormData();
+                dados.append('usuario_id', usuario_id);
+                const resposta = await fetch(`${SERVER_URL}/buscar_orcamentos.php`, { method: 'POST', body: dados });
+                const resultado = await resposta.json();
+                if(resultado.status === 'sucesso') historico = resultado.orcamentos;
+            } catch(e) {
+                historico = JSON.parse(localStorage.getItem('historico') || '[]');
+            }
+        }
 
         if(historico.length === 0) {
             lista.innerHTML = '<p style="text-align:center;color:#999;margin-top:20px;">Nenhum orçamento gerado ainda.</p>';
-        } else {
-            lista.innerHTML = historico.map(h => {
-                const itensStr = h.itens.map(i => i.desc).join(', ');
-                const totalStr = Number(h.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-                const tipoIcon = h.tipo === 'whatsapp' ? '📱 WhatsApp' : '📄 PDF';
-                return `
-                    <div class="historico-item">
-                        <div class="hi-header">
-                            <span class="hi-cliente">${h.cliente}</span>
-                            <span class="hi-data">${h.data}</span>
-                        </div>
-                        <div style="font-size:12px;color:#666;margin-top:4px;">${itensStr}</div>
-                        <div class="hi-header" style="margin-top:6px;">
-                            <span class="hi-total">R$ ${totalStr}</span>
-                            <span class="hi-tipo">${tipoIcon}</span>
-                        </div>
-                    </div>`;
-            }).join('');
+            return;
         }
-        alternarTelas('historico');
+
+        lista.innerHTML = historico.map(h => {
+            const itens = Array.isArray(h.itens) ? h.itens : JSON.parse(h.itens || '[]');
+            const itensStr = itens.map(i => i.desc).join(', ');
+            const totalStr = Number(h.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            const tipoIcon = h.tipo === 'whatsapp' ? '📱 WhatsApp' : '📄 PDF';
+            const data = h.criado_em || h.data;
+            return `
+                <div class="historico-item">
+                    <div class="hi-header">
+                        <span class="hi-cliente">${h.cliente}</span>
+                        <span class="hi-data">${data}</span>
+                    </div>
+                    <div style="font-size:12px;color:#666;margin-top:4px;">${itensStr}</div>
+                    <div class="hi-header" style="margin-top:6px;">
+                        <span class="hi-total">R$ ${totalStr}</span>
+                        <span class="hi-tipo">${tipoIcon}</span>
+                    </div>
+                </div>`;
+        }).join('');
     }
 
     function fazerLogout() {
