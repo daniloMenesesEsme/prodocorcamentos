@@ -386,8 +386,12 @@
             <input type="text" id="ncWhatsapp" placeholder="85999999999" style="margin-bottom:10px;">
             <label>E-mail:</label>
             <input type="email" id="ncEmail" placeholder="cliente@email.com" style="margin-bottom:10px;">
-            <label>CEP: <span style="font-size:11px;color:#888;">(preenche a cidade automaticamente)</span></label>
+            <label>CEP: <span style="font-size:11px;color:#888;">(preenche endereço e cidade automaticamente)</span></label>
             <input type="text" id="ncCep" placeholder="00000-000" maxlength="9" oninput="buscarCEPCliente('nc')" style="margin-bottom:10px;">
+            <label>Endereço:</label>
+            <input type="text" id="ncEndereco" placeholder="Rua / Av. (preenchida pelo CEP)" style="margin-bottom:10px;">
+            <label>Número:</label>
+            <input type="text" id="ncNumero" placeholder="Ex: 123" style="margin-bottom:10px;">
             <label>Cidade:</label>
             <input type="text" id="ncCidade" placeholder="Ex: Fortaleza - CE" style="margin-bottom:10px;">
             <label>Observações:</label>
@@ -529,8 +533,12 @@
             <input type="text" id="cliWhatsapp" placeholder="85999999999">
             <label>E-mail:</label>
             <input type="email" id="cliEmail" placeholder="cliente@email.com">
-            <label>CEP: <span style="font-size:11px;color:#888;">(preenche a cidade automaticamente)</span></label>
+            <label>CEP: <span style="font-size:11px;color:#888;">(preenche endereço e cidade automaticamente)</span></label>
             <input type="text" id="cliCep" placeholder="00000-000" maxlength="9" oninput="buscarCEPCliente('cli')">
+            <label>Endereço:</label>
+            <input type="text" id="cliEndereco" placeholder="Rua / Av. (preenchida pelo CEP)">
+            <label>Número:</label>
+            <input type="text" id="cliNumero" placeholder="Ex: 123">
             <label>Cidade:</label>
             <input type="text" id="cliCidade" placeholder="Ex: Fortaleza - CE">
             <label>Observações:</label>
@@ -1795,6 +1803,8 @@ CREATE TABLE movimentacoes_estoque (
         const emailId = modo === 'cli' ? 'cliEmail'    : 'ncEmail';
         const zapId   = modo === 'cli' ? 'cliWhatsapp' : 'ncWhatsapp';
         const cepId   = modo === 'cli' ? 'cliCep'      : 'ncCep';
+        const endId   = modo === 'cli' ? 'cliEndereco' : 'ncEndereco';
+        const numId   = modo === 'cli' ? 'cliNumero'   : 'ncNumero';
         const cidId   = modo === 'cli' ? 'cliCidade'   : 'ncCidade';
         const btnId   = modo === 'cli' ? 'btnBuscarCnpjCli' : 'btnBuscarCnpjNc';
 
@@ -1815,7 +1825,7 @@ CREATE TABLE movimentacoes_estoque (
             const cepVal = (d.cep || '').replace(/\D/g, '');
             if (cepVal) {
                 document.getElementById(cepId).value = cepVal;
-                await _buscarCEP(cepId, cidId);
+                await _buscarCEP(cepId, endId, numId, cidId);
             } else if (d.municipio) {
                 document.getElementById(cidId).value = `${d.municipio}${d.uf ? ' - ' + d.uf : ''}`;
             }
@@ -1828,26 +1838,32 @@ CREATE TABLE movimentacoes_estoque (
     }
 
     async function buscarCEPCliente(modo) {
-        const cepId = modo === 'cli' ? 'cliCep'    : 'ncCep';
-        const cidId = modo === 'cli' ? 'cliCidade' : 'ncCidade';
-        await _buscarCEP(cepId, cidId);
+        const cepId = modo === 'cli' ? 'cliCep'      : 'ncCep';
+        const endId = modo === 'cli' ? 'cliEndereco' : 'ncEndereco';
+        const numId = modo === 'cli' ? 'cliNumero'   : 'ncNumero';
+        const cidId = modo === 'cli' ? 'cliCidade'   : 'ncCidade';
+        await _buscarCEP(cepId, endId, numId, cidId);
     }
 
-    async function _buscarCEP(cepId, cidadeId) {
+    async function _buscarCEP(cepId, enderecoId, numeroId, cidadeId) {
         const cep = document.getElementById(cepId).value.replace(/\D/g, '');
         if (cep.length !== 8) return;
         try {
             const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
             const d = await r.json();
             if (d.erro) return;
-            document.getElementById(cidadeId).value = `${d.localidade || ''}${d.uf ? ' - ' + d.uf : ''}`;
+            document.getElementById(enderecoId).value = d.logradouro || '';
+            document.getElementById(cidadeId).value   = `${d.localidade || ''}${d.uf ? ' - ' + d.uf : ''}`;
+            // Foca no número para o usuário digitar apenas ele
+            const numEl = document.getElementById(numeroId);
+            if (numEl) numEl.focus();
         } catch(e) {}
     }
     // ---- FIM BUSCA CNPJ/CEP CLIENTES ----
 
     // ---- OVERLAY: CADASTRO RÁPIDO DE CLIENTE ----
     function abrirOverlayNovoCliente() {
-        ['ncNome','ncCnpj','ncWhatsapp','ncEmail','ncCep','ncCidade','ncObs'].forEach(id => {
+        ['ncNome','ncCnpj','ncWhatsapp','ncEmail','ncCep','ncEndereco','ncNumero','ncCidade','ncObs'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
@@ -1873,6 +1889,9 @@ CREATE TABLE movimentacoes_estoque (
         dados.append('whatsapp',   document.getElementById('ncWhatsapp').value.trim());
         dados.append('email',      document.getElementById('ncEmail').value.trim());
         dados.append('cpf_cnpj',   document.getElementById('ncCnpj').value.trim());
+        dados.append('cep',        document.getElementById('ncCep').value.trim());
+        dados.append('endereco',   document.getElementById('ncEndereco').value.trim());
+        dados.append('numero',     document.getElementById('ncNumero').value.trim());
         dados.append('cidade',     document.getElementById('ncCidade').value.trim());
         dados.append('observacoes',document.getElementById('ncObs').value.trim());
 
@@ -1884,10 +1903,13 @@ CREATE TABLE movimentacoes_estoque (
                 // Atualiza cacheClientes
                 const novoCliente = {
                     id: json.id, nome,
-                    whatsapp: document.getElementById('ncWhatsapp').value.trim(),
-                    email:    document.getElementById('ncEmail').value.trim(),
-                    cpf_cnpj: document.getElementById('ncCnpj').value.trim(),
-                    cidade:   document.getElementById('ncCidade').value.trim(),
+                    whatsapp:    document.getElementById('ncWhatsapp').value.trim(),
+                    email:       document.getElementById('ncEmail').value.trim(),
+                    cpf_cnpj:    document.getElementById('ncCnpj').value.trim(),
+                    cep:         document.getElementById('ncCep').value.trim(),
+                    endereco:    document.getElementById('ncEndereco').value.trim(),
+                    numero:      document.getElementById('ncNumero').value.trim(),
+                    cidade:      document.getElementById('ncCidade').value.trim(),
                     observacoes: document.getElementById('ncObs').value.trim()
                 };
                 cacheClientes.unshift(novoCliente);
@@ -2112,11 +2134,13 @@ CREATE TABLE movimentacoes_estoque (
     function mostrarFormCliente(cliente = null) {
         document.getElementById('cliId').value       = cliente ? cliente.id : '';
         document.getElementById('cliNome').value     = cliente ? cliente.nome : '';
-        document.getElementById('cliWhatsapp').value = cliente ? (cliente.whatsapp || '') : '';
-        document.getElementById('cliEmail').value    = cliente ? (cliente.email    || '') : '';
-        document.getElementById('cliCpfCnpj').value  = cliente ? (cliente.cpf_cnpj || '') : '';
-        document.getElementById('cliCep').value      = '';
-        document.getElementById('cliCidade').value   = cliente ? (cliente.cidade   || '') : '';
+        document.getElementById('cliWhatsapp').value = cliente ? (cliente.whatsapp  || '') : '';
+        document.getElementById('cliEmail').value    = cliente ? (cliente.email     || '') : '';
+        document.getElementById('cliCpfCnpj').value  = cliente ? (cliente.cpf_cnpj  || '') : '';
+        document.getElementById('cliCep').value      = cliente ? (cliente.cep       || '') : '';
+        document.getElementById('cliEndereco').value = cliente ? (cliente.endereco  || '') : '';
+        document.getElementById('cliNumero').value   = cliente ? (cliente.numero    || '') : '';
+        document.getElementById('cliCidade').value   = cliente ? (cliente.cidade    || '') : '';
         document.getElementById('cliObs').value      = cliente ? (cliente.observacoes || '') : '';
         document.getElementById('formCliente').style.display = 'block';
         document.getElementById('cliNome').focus();
@@ -2146,6 +2170,9 @@ CREATE TABLE movimentacoes_estoque (
         dados.append('whatsapp',   document.getElementById('cliWhatsapp').value.trim());
         dados.append('email',      document.getElementById('cliEmail').value.trim());
         dados.append('cpf_cnpj',   document.getElementById('cliCpfCnpj').value.trim());
+        dados.append('cep',        document.getElementById('cliCep').value.trim());
+        dados.append('endereco',   document.getElementById('cliEndereco').value.trim());
+        dados.append('numero',     document.getElementById('cliNumero').value.trim());
         dados.append('cidade',     document.getElementById('cliCidade').value.trim());
         dados.append('observacoes',document.getElementById('cliObs').value.trim());
 
