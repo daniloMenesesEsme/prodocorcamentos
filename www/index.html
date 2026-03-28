@@ -142,6 +142,18 @@
         .alerta-banner { background:#f8d7da; border:1px solid #f5c6cb; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px; }
         .alerta-banner-txt { font-size:13px; color:#721c24; font-weight:bold; }
 
+        /* Busca no histórico */
+        .hist-busca-wrap { position:relative; margin-bottom:12px; }
+        .hist-busca-input { width:100%; padding:11px 38px 11px 14px; border-radius:8px; border:1px solid #ddd; box-sizing:border-box; font-size:14px; background:#f9f9f9; }
+        .hist-busca-input:focus { outline:none; border-color:#25d366; background:white; }
+        .hist-busca-clear { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:18px; color:#aaa; cursor:pointer; display:none; }
+        .hist-filtros { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+        .hist-filtro-btn { background:#f0f0f0; border:1px solid #ddd; border-radius:16px; padding:5px 12px; font-size:12px; font-weight:bold; color:#666; cursor:pointer; white-space:nowrap; }
+        .hist-filtro-btn.ativo { background:#075e54; color:white; border-color:#075e54; }
+        .hist-data-filtro { display:none; gap:6px; margin-bottom:12px; align-items:center; flex-wrap:wrap; }
+        .hist-data-filtro input[type=date] { flex:1; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:13px; }
+        .hist-resumo { font-size:12px; color:#888; margin-bottom:8px; }
+
         /* Visualização de orçamento */
         #overlayVerOrc { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; padding:15px; overflow-y:auto; }
         .ver-orc-modal { background:white; border-radius:10px; padding:20px; max-width:500px; margin:0 auto; }
@@ -261,6 +273,35 @@
     <!-- 4. TELA DE HISTÓRICO -->
     <div id="telaHistorico" class="card" style="display: none;">
         <h2>📋 Histórico</h2>
+
+        <!-- Busca por texto -->
+        <div class="hist-busca-wrap">
+            <input type="text" id="histBusca" class="hist-busca-input"
+                placeholder="🔍 Buscar por cliente, item ou valor..."
+                oninput="filtrarHistorico()">
+            <button class="hist-busca-clear" id="histBuscaClear" onclick="limparBuscaHistorico()">✕</button>
+        </div>
+
+        <!-- Filtros rápidos -->
+        <div class="hist-filtros">
+            <button class="hist-filtro-btn ativo" id="hfTodos"     onclick="setFiltroHist('todos')">Todos</button>
+            <button class="hist-filtro-btn"        id="hfHoje"      onclick="setFiltroHist('hoje')">Hoje</button>
+            <button class="hist-filtro-btn"        id="hfSemana"    onclick="setFiltroHist('semana')">7 dias</button>
+            <button class="hist-filtro-btn"        id="hfMes"       onclick="setFiltroHist('mes')">Este mês</button>
+            <button class="hist-filtro-btn"        id="hfWhatsapp"  onclick="setFiltroHist('whatsapp')">📱 WhatsApp</button>
+            <button class="hist-filtro-btn"        id="hfPdf"       onclick="setFiltroHist('pdf')">📄 PDF</button>
+            <button class="hist-filtro-btn"        id="hfPeriodo"   onclick="setFiltroHist('periodo')">📅 Período</button>
+        </div>
+
+        <!-- Filtro de período (visível apenas quando selecionado) -->
+        <div class="hist-data-filtro" id="histDataFiltro">
+            <input type="date" id="histDataInicio">
+            <span style="color:#888;font-size:13px;">até</span>
+            <input type="date" id="histDataFim">
+            <button onclick="filtrarHistorico()" class="btn-filtrar" style="padding:8px 14px;">🔍</button>
+        </div>
+
+        <div id="histResumo" class="hist-resumo"></div>
         <div id="listaHistorico"></div>
     </div>
 
@@ -2201,6 +2242,18 @@ CREATE TABLE movimentacoes_estoque (
 
     async function verHistorico() {
         alternarTelas('historico');
+        // Resetar filtros
+        document.getElementById('histBusca').value = '';
+        document.getElementById('histBuscaClear').style.display = 'none';
+        document.getElementById('histDataFiltro').style.display = 'none';
+        filtroHistAtivo = 'todos';
+        ['hfTodos','hfHoje','hfSemana','hfMes','hfWhatsapp','hfPdf','hfPeriodo'].forEach(id =>
+            document.getElementById(id).classList.remove('ativo'));
+        document.getElementById('hfTodos').classList.add('ativo');
+        const hoje = new Date();
+        document.getElementById('histDataInicio').value = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+        document.getElementById('histDataFim').value    = hoje.toISOString().split('T')[0];
+
         const lista = document.getElementById('listaHistorico');
         lista.innerHTML = '<p style="text-align:center;color:#999;">Carregando...</p>';
 
@@ -2221,9 +2274,114 @@ CREATE TABLE movimentacoes_estoque (
 
         if(historico.length === 0) {
             lista.innerHTML = '<p style="text-align:center;color:#999;margin-top:20px;">Nenhum orçamento gerado ainda.</p>';
+            document.getElementById('histResumo').textContent = '';
             return;
         }
 
+        // Inicializa resumo e renderiza
+        filtrarHistorico();
+    }
+
+    // ---- VISUALIZAR / REENVIAR ORÇAMENTO ----
+    let cacheHistorico    = [];
+    let orcamentoAtualVer = null;
+    let filtroHistAtivo   = 'todos';
+
+    function setFiltroHist(filtro) {
+        filtroHistAtivo = filtro;
+        // Atualiza botões
+        ['hfTodos','hfHoje','hfSemana','hfMes','hfWhatsapp','hfPdf','hfPeriodo'].forEach(id => {
+            document.getElementById(id).classList.remove('ativo');
+        });
+        const mapa = { todos:'hfTodos', hoje:'hfHoje', semana:'hfSemana', mes:'hfMes', whatsapp:'hfWhatsapp', pdf:'hfPdf', periodo:'hfPeriodo' };
+        document.getElementById(mapa[filtro]).classList.add('ativo');
+        // Mostra/oculta filtro de período
+        document.getElementById('histDataFiltro').style.display = filtro === 'periodo' ? 'flex' : 'none';
+        filtrarHistorico();
+    }
+
+    function filtrarHistorico() {
+        const busca = document.getElementById('histBusca').value.toLowerCase().trim();
+        const btnClear = document.getElementById('histBuscaClear');
+        btnClear.style.display = busca ? 'block' : 'none';
+
+        const agora    = new Date();
+        const hoje     = agora.toLocaleDateString('pt-BR');
+        const set7     = new Date(agora); set7.setDate(agora.getDate() - 7);
+        const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+
+        const diInp = document.getElementById('histDataInicio').value;
+        const dfInp = document.getElementById('histDataFim').value;
+        const diDate = diInp ? new Date(diInp + 'T00:00:00') : null;
+        const dfDate = dfInp ? new Date(dfInp + 'T23:59:59') : null;
+
+        const resultado = cacheHistorico.filter(h => {
+            // Filtro de texto
+            if (busca) {
+                const itens    = Array.isArray(h.itens) ? h.itens : JSON.parse(h.itens || '[]');
+                const itensStr = itens.map(i => i.desc).join(' ').toLowerCase();
+                const totalStr = String(h.total);
+                const haystack = `${h.cliente} ${itensStr} ${totalStr}`.toLowerCase();
+                if (!haystack.includes(busca)) return false;
+            }
+
+            // Filtro por período/tipo
+            const dataStr = h.criado_em || h.data || '';
+            // criado_em vem como "dd/mm/yyyy hh:mm" do PHP
+            let dataOrc = null;
+            if (dataStr.includes('/')) {
+                const [d, m, resto] = dataStr.split('/');
+                const [y] = (resto || '').split(' ');
+                dataOrc = new Date(`${y}-${m}-${d}T00:00:00`);
+            }
+
+            if (filtroHistAtivo === 'hoje') {
+                return dataStr.startsWith(hoje);
+            }
+            if (filtroHistAtivo === 'semana') {
+                return dataOrc && dataOrc >= set7;
+            }
+            if (filtroHistAtivo === 'mes') {
+                return dataOrc && dataOrc >= inicioMes;
+            }
+            if (filtroHistAtivo === 'whatsapp') {
+                return h.tipo === 'whatsapp';
+            }
+            if (filtroHistAtivo === 'pdf') {
+                return h.tipo === 'pdf';
+            }
+            if (filtroHistAtivo === 'periodo') {
+                if (!dataOrc) return false;
+                if (diDate && dataOrc < diDate) return false;
+                if (dfDate && dataOrc > dfDate) return false;
+                return true;
+            }
+            return true; // todos
+        });
+
+        // Resumo
+        const totalFiltrado = resultado.reduce((s, h) => s + Number(h.total), 0);
+        const fmtVal = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        document.getElementById('histResumo').textContent =
+            resultado.length === cacheHistorico.length
+                ? `${resultado.length} orçamento${resultado.length !== 1 ? 's' : ''} · Total: ${fmtVal(totalFiltrado)}`
+                : `${resultado.length} de ${cacheHistorico.length} orçamentos · Total filtrado: ${fmtVal(totalFiltrado)}`;
+
+        renderizarHistorico(resultado);
+    }
+
+    function limparBuscaHistorico() {
+        document.getElementById('histBusca').value = '';
+        document.getElementById('histBuscaClear').style.display = 'none';
+        filtrarHistorico();
+    }
+
+    function renderizarHistorico(historico) {
+        const lista = document.getElementById('listaHistorico');
+        if (historico.length === 0) {
+            lista.innerHTML = '<p style="text-align:center;color:#999;margin-top:20px;">Nenhum resultado encontrado.</p>';
+            return;
+        }
         lista.innerHTML = historico.map(h => {
             const itens    = Array.isArray(h.itens) ? h.itens : JSON.parse(h.itens || '[]');
             const itensStr = itens.map(i => i.desc).join(', ');
@@ -2260,10 +2418,6 @@ CREATE TABLE movimentacoes_estoque (
                 </div>`;
         }).join('');
     }
-
-    // ---- VISUALIZAR / REENVIAR ORÇAMENTO ----
-    let cacheHistorico = [];
-    let orcamentoAtualVer = null;
 
     function abrirVerOrc(id) {
         const h = cacheHistorico.find(x => x.id == id);
