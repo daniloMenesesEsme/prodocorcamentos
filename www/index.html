@@ -116,6 +116,36 @@
         .orc-rel-itens { font-size:11px; color:#666; margin-top:3px; font-style:italic; }
         .btn-rel-pdf { background:#007bff; color:white; border:none; padding:12px; width:100%; border-radius:5px; font-weight:bold; font-size:14px; cursor:pointer; margin-top:5px; }
 
+        /* Estoque */
+        .estoque-item { background:#f9f9f9; padding:10px 12px; border-radius:8px; margin-bottom:8px; border-left:4px solid #28a745; }
+        .estoque-item.alerta { border-left-color:#dc3545; background:#fff8f8; }
+        .estoque-item.zerado { border-left-color:#fd7e14; background:#fff9f2; }
+        .estoque-header { display:flex; justify-content:space-between; align-items:flex-start; }
+        .estoque-nome { font-weight:bold; color:#075e54; font-size:14px; }
+        .estoque-badge { font-size:11px; padding:2px 7px; border-radius:10px; font-weight:bold; }
+        .badge-ok { background:#d4edda; color:#155724; }
+        .badge-alerta { background:#f8d7da; color:#721c24; }
+        .badge-zerado { background:#fde9d4; color:#7a3e00; }
+        .estoque-detalhe { font-size:12px; color:#888; margin-top:3px; }
+        .estoque-acoes { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+        .btn-entrada { background:#28a745; color:white; border:none; border-radius:5px; padding:5px 10px; cursor:pointer; font-size:12px; font-weight:bold; }
+        .btn-saida   { background:#dc3545; color:white; border:none; border-radius:5px; padding:5px 10px; cursor:pointer; font-size:12px; font-weight:bold; }
+        .btn-ajuste  { background:#ffc107; color:#333; border:none; border-radius:5px; padding:5px 10px; cursor:pointer; font-size:12px; font-weight:bold; }
+        .btn-minimo  { background:#6c757d; color:white; border:none; border-radius:5px; padding:5px 10px; cursor:pointer; font-size:12px; font-weight:bold; }
+        .mov-item { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid #f0f0f0; }
+        .mov-item:last-child { border-bottom:none; }
+        .mov-tipo { font-size:12px; font-weight:bold; }
+        .mov-entrada-txt { color:#28a745; }
+        .mov-saida-txt   { color:#dc3545; }
+        .mov-ajuste-txt  { color:#ffc107; }
+        .mov-detalhe { font-size:11px; color:#888; }
+        .alerta-banner { background:#f8d7da; border:1px solid #f5c6cb; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px; }
+        .alerta-banner-txt { font-size:13px; color:#721c24; font-weight:bold; }
+
+        /* Overlay de movimentação */
+        #overlayMovimentacao { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; padding:20px; overflow-y:auto; }
+        .mov-modal { background:white; border-radius:10px; padding:20px; max-width:420px; margin:0 auto; }
+
         /* Estilo para esconder as telas */
         #telaPrincipal { display: none; }
     </style>
@@ -492,13 +522,73 @@
         <button class="btn-rel-pdf" onclick="gerarRelatorioPDF()" id="btnRelPDF" style="display:none;">📄 Exportar Relatório em PDF</button>
     </div>
 
+    <!-- 11. TELA DE ESTOQUE -->
+    <div id="telaEstoque" class="card" style="display:none;">
+        <h2>📦 Estoque</h2>
+
+        <!-- Banner de alertas -->
+        <div id="alertaBanner" class="alerta-banner" style="display:none;">
+            <span style="font-size:22px;">⚠️</span>
+            <span class="alerta-banner-txt" id="alertaBannerTxt"></span>
+        </div>
+
+        <!-- Abas -->
+        <div style="display:flex;gap:0;margin-bottom:15px;border-bottom:2px solid #eee;">
+            <button id="abaEstoque" onclick="trocarAbaEstoque('estoque')"
+                style="flex:1;padding:10px;border:none;background:none;font-weight:bold;color:#075e54;border-bottom:3px solid #25d366;cursor:pointer;font-size:13px;">
+                📋 Posição Atual
+            </button>
+            <button id="abaMovimentacoes" onclick="trocarAbaEstoque('movimentacoes')"
+                style="flex:1;padding:10px;border:none;background:none;font-weight:bold;color:#aaa;border-bottom:3px solid transparent;cursor:pointer;font-size:13px;">
+                🔄 Movimentações
+            </button>
+        </div>
+
+        <!-- Aba posição atual -->
+        <div id="painelEstoque">
+            <div id="listaPosicaoEstoque"></div>
+        </div>
+
+        <!-- Aba movimentações -->
+        <div id="painelMovimentacoes" style="display:none;">
+            <div id="listaMovimentacoes"></div>
+        </div>
+    </div>
+
+    <!-- OVERLAY DE MOVIMENTAÇÃO DE ESTOQUE -->
+    <div id="overlayMovimentacao">
+        <div class="mov-modal">
+            <h3 style="color:#075e54;margin-top:0;" id="movModalTitulo">Movimentação</h3>
+            <input type="hidden" id="movProdutoId">
+            <input type="hidden" id="movTipo">
+
+            <p id="movProdutoNome" style="font-weight:bold;color:#333;margin:0 0 12px;font-size:14px;"></p>
+
+            <label id="movQuantidadeLabel">Quantidade:</label>
+            <input type="number" id="movQuantidade" placeholder="0" step="0.01" min="0.01" style="margin-bottom:10px;">
+
+            <div id="movEstoqueAtualBox" style="background:#f9f9f9;border-radius:6px;padding:8px;margin-bottom:10px;font-size:13px;color:#555;display:none;">
+                Estoque atual: <strong id="movEstoqueAtualVal"></strong>
+            </div>
+
+            <label>Observação (opcional):</label>
+            <input type="text" id="movObservacao" placeholder="Ex: Compra fornecedor X">
+
+            <div style="display:flex;gap:8px;margin-top:14px;">
+                <button id="btnConfirmarMov" onclick="confirmarMovimentacao()" class="btn-salvar" style="flex:1;padding:12px;">CONFIRMAR</button>
+                <button onclick="fecharOverlayMovimentacao()" class="btn-voltar" style="margin-bottom:0;">CANCELAR</button>
+            </div>
+        </div>
+    </div>
+
     <!-- OVERLAY MAIS -->
     <div id="overlayMais" onclick="fecharMais()">
         <div class="mais-menu" onclick="event.stopPropagation()">
             <p style="margin:0 0 10px;font-size:12px;color:#999;text-align:center;">ACESSO RÁPIDO</p>
             <button class="mais-btn" onclick="fecharMais();abrirRelatorios()"><span>📈</span> Relatórios</button>
+            <button class="mais-btn" onclick="fecharMais();abrirEstoque()"><span>📦</span> Controle de Estoque</button>
             <button class="mais-btn" onclick="fecharMais();abrirEmpresa()"><span>🏢</span> Minha Empresa</button>
-            <button class="mais-btn" onclick="fecharMais();abrirProdutos()"><span>📦</span> Catálogo de Produtos</button>
+            <button class="mais-btn" onclick="fecharMais();abrirProdutos()"><span>🗂️</span> Catálogo de Produtos</button>
             <button class="mais-btn" onclick="fecharMais();verHistorico()"><span>📋</span> Histórico de Orçamentos</button>
             <button class="mais-btn" onclick="fecharMais();fazerLogout()" style="color:#dc3545;"><span>🚪</span> Sair do Sistema</button>
         </div>
@@ -532,11 +622,11 @@
 
     function alternarTelas(qual) {
         ['telaLogin','telaCadastro','telaPrincipal','telaHistorico','telaEmpresa','telaProdutos',
-         'telaDashboard','telaClientes','telaFinanceiro','telaRelatorios'].forEach(id => {
+         'telaDashboard','telaClientes','telaFinanceiro','telaRelatorios','telaEstoque'].forEach(id => {
             document.getElementById(id).style.display = 'none';
         });
 
-        const telasLogadas = ['principal','empresa','historico','produtos','dashboard','clientes','financeiro','relatorios'];
+        const telasLogadas = ['principal','empresa','historico','produtos','dashboard','clientes','financeiro','relatorios','estoque'];
         document.getElementById('bottomNav').style.display = telasLogadas.includes(qual) ? 'flex' : 'none';
 
         if(qual === 'login')      document.getElementById('telaLogin').style.display = 'block';
@@ -549,6 +639,7 @@
         if(qual === 'clientes')   document.getElementById('telaClientes').style.display = 'block';
         if(qual === 'financeiro')  document.getElementById('telaFinanceiro').style.display = 'block';
         if(qual === 'relatorios') document.getElementById('telaRelatorios').style.display = 'block';
+        if(qual === 'estoque')    document.getElementById('telaEstoque').style.display = 'block';
 
         ['navInicio','navDashboard','navClientes','navFinanceiro','navMais'].forEach(id => {
             document.getElementById(id).classList.remove('ativo');
@@ -557,7 +648,7 @@
         if(qual === 'dashboard')  document.getElementById('navDashboard').classList.add('ativo');
         if(qual === 'clientes')   document.getElementById('navClientes').classList.add('ativo');
         if(qual === 'financeiro') document.getElementById('navFinanceiro').classList.add('ativo');
-        if(['empresa','produtos','historico','relatorios'].includes(qual)) document.getElementById('navMais').classList.add('ativo');
+        if(['empresa','produtos','historico','relatorios','estoque'].includes(qual)) document.getElementById('navMais').classList.add('ativo');
     }
 
     async function realizarCadastro() {
@@ -862,6 +953,218 @@
             btn.textContent = 'SALVAR DADOS DA EMPRESA';
         }
     }
+
+    // ---- ESTOQUE ----
+    let cacheEstoque = [];
+
+    async function abrirEstoque() {
+        alternarTelas('estoque');
+        trocarAbaEstoque('estoque');
+        await carregarEstoque();
+    }
+
+    function trocarAbaEstoque(aba) {
+        const isEstoque = aba === 'estoque';
+        document.getElementById('painelEstoque').style.display      = isEstoque ? 'block' : 'none';
+        document.getElementById('painelMovimentacoes').style.display = isEstoque ? 'none' : 'block';
+        document.getElementById('abaEstoque').style.color           = isEstoque ? '#075e54' : '#aaa';
+        document.getElementById('abaEstoque').style.borderBottomColor = isEstoque ? '#25d366' : 'transparent';
+        document.getElementById('abaMovimentacoes').style.color     = isEstoque ? '#aaa' : '#075e54';
+        document.getElementById('abaMovimentacoes').style.borderBottomColor = isEstoque ? 'transparent' : '#25d366';
+    }
+
+    async function carregarEstoque() {
+        const usuario_id = localStorage.getItem('usuario_id');
+        if (!usuario_id) return;
+        const dados = new FormData();
+        dados.append('usuario_id', usuario_id);
+        try {
+            const res  = await fetch(`${SERVER_URL}/listar_estoque.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status !== 'sucesso') return;
+            cacheEstoque = json.produtos;
+            renderizarPosicaoEstoque(json.produtos, json.qtd_alertas);
+            renderizarMovimentacoes(json.movimentacoes);
+        } catch(e) {
+            document.getElementById('listaPosicaoEstoque').innerHTML = '<p style="color:#999;text-align:center;">Erro ao carregar estoque.</p>';
+        }
+    }
+
+    function renderizarPosicaoEstoque(produtos, qtdAlertas) {
+        // Banner de alertas
+        const banner = document.getElementById('alertaBanner');
+        if (qtdAlertas > 0) {
+            banner.style.display = 'flex';
+            document.getElementById('alertaBannerTxt').textContent =
+                `${qtdAlertas} produto${qtdAlertas > 1 ? 's' : ''} com estoque abaixo do mínimo!`;
+        } else {
+            banner.style.display = 'none';
+        }
+
+        const lista = document.getElementById('listaPosicaoEstoque');
+        if (produtos.length === 0) {
+            lista.innerHTML = '<p style="color:#999;text-align:center;margin-top:20px;">Nenhum produto cadastrado.<br>Cadastre produtos no Catálogo primeiro.</p>';
+            return;
+        }
+
+        const fmt = v => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        let html = '';
+        produtos.forEach(p => {
+            const estAtual  = parseFloat(p.estoque_atual);
+            const estMin    = parseFloat(p.estoque_minimo);
+            const isAlerta  = p.alerta == 1;
+            const isZerado  = estAtual <= 0;
+
+            let cls = 'estoque-item';
+            let badgeCls = 'badge-ok', badgeTxt = '✅ OK';
+            if (isZerado) { cls += ' zerado'; badgeCls = 'badge-zerado'; badgeTxt = '⚠️ Zerado'; }
+            else if (isAlerta) { cls += ' alerta'; badgeCls = 'badge-alerta'; badgeTxt = '🔴 Baixo'; }
+
+            html += `<div class="${cls}">
+                <div class="estoque-header">
+                    <div>
+                        <div class="estoque-nome">${p.nome}</div>
+                        <div class="estoque-detalhe">
+                            Estoque: <strong>${fmt(estAtual)} ${p.unidade}</strong>
+                            ${estMin > 0 ? ` · Mín: ${fmt(estMin)} ${p.unidade}` : ' · Sem mínimo definido'}
+                        </div>
+                    </div>
+                    <span class="estoque-badge ${badgeCls}">${badgeTxt}</span>
+                </div>
+                <div class="estoque-acoes">
+                    <button class="btn-entrada" onclick="abrirMovimentacao(${p.id},'entrada')">+ Entrada</button>
+                    <button class="btn-saida"   onclick="abrirMovimentacao(${p.id},'saida')">− Saída</button>
+                    <button class="btn-ajuste"  onclick="abrirMovimentacao(${p.id},'ajuste')">✏️ Ajuste</button>
+                    <button class="btn-minimo"  onclick="definirMinimoPrompt(${p.id},'${p.nome.replace(/'/g,"\\'")}',${estMin})">🔔 Mínimo</button>
+                </div>
+            </div>`;
+        });
+        lista.innerHTML = html;
+    }
+
+    function renderizarMovimentacoes(movs) {
+        const lista = document.getElementById('listaMovimentacoes');
+        if (movs.length === 0) {
+            lista.innerHTML = '<p style="color:#999;text-align:center;margin-top:20px;">Nenhuma movimentação registrada ainda.</p>';
+            return;
+        }
+        const tipoIcon  = { entrada:'📥', saida:'📤', ajuste:'✏️' };
+        const tipoLabel = { entrada:'Entrada', saida:'Saída', ajuste:'Ajuste' };
+        const tipoCls   = { entrada:'mov-entrada-txt', saida:'mov-saida-txt', ajuste:'mov-ajuste-txt' };
+        const fmt = v => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+        lista.innerHTML = movs.map(m => {
+            const data = new Date(m.criado_em).toLocaleDateString('pt-BR');
+            const hora = new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+            const sinal = m.tipo === 'entrada' ? '+' : (m.tipo === 'saida' ? '−' : '=');
+            return `<div class="mov-item">
+                <div>
+                    <div class="mov-tipo ${tipoCls[m.tipo]}">${tipoIcon[m.tipo]} ${tipoLabel[m.tipo]} — ${m.produto_nome}</div>
+                    <div class="mov-detalhe">${m.produto_nome} · ${fmt(m.estoque_anterior)} → ${fmt(m.estoque_resultante)} ${m.unidade}</div>
+                    ${m.observacao ? `<div class="mov-detalhe" style="font-style:italic;">${m.observacao}</div>` : ''}
+                    <div class="mov-detalhe">${data} ${hora}</div>
+                </div>
+                <div style="font-weight:bold;font-size:14px;" class="${tipoCls[m.tipo]}">${sinal}${fmt(m.quantidade)}</div>
+            </div>`;
+        }).join('');
+    }
+
+    function abrirMovimentacao(produtoId, tipo) {
+        const produto = cacheEstoque.find(p => p.id == produtoId);
+        if (!produto) return;
+
+        const titulos = { entrada:'📥 Registrar Entrada', saida:'📤 Registrar Saída', ajuste:'✏️ Ajustar Estoque' };
+        const labels  = { entrada:'Quantidade a adicionar:', saida:'Quantidade a retirar:', ajuste:'Novo valor de estoque:' };
+
+        document.getElementById('movModalTitulo').textContent      = titulos[tipo];
+        document.getElementById('movProdutoNome').textContent      = produto.nome;
+        document.getElementById('movQuantidadeLabel').textContent  = labels[tipo];
+        document.getElementById('movProdutoId').value              = produtoId;
+        document.getElementById('movTipo').value                   = tipo;
+        document.getElementById('movQuantidade').value             = '';
+        document.getElementById('movObservacao').value             = '';
+
+        const box = document.getElementById('movEstoqueAtualBox');
+        box.style.display = 'block';
+        document.getElementById('movEstoqueAtualVal').textContent =
+            `${Number(produto.estoque_atual).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ${produto.unidade}`;
+
+        // No ajuste, sugerimos o valor atual como ponto de partida
+        if (tipo === 'ajuste') document.getElementById('movQuantidade').value = produto.estoque_atual;
+
+        document.getElementById('overlayMovimentacao').style.display = 'block';
+        document.getElementById('movQuantidade').focus();
+    }
+
+    function fecharOverlayMovimentacao() {
+        document.getElementById('overlayMovimentacao').style.display = 'none';
+    }
+
+    async function confirmarMovimentacao() {
+        const produto_id = document.getElementById('movProdutoId').value;
+        const tipo       = document.getElementById('movTipo').value;
+        const quantidade = document.getElementById('movQuantidade').value;
+        const observacao = document.getElementById('movObservacao').value;
+
+        if (!quantidade || parseFloat(quantidade) <= 0) {
+            alert('Informe uma quantidade válida.');
+            return;
+        }
+
+        const btn = document.getElementById('btnConfirmarMov');
+        btn.disabled = true; btn.textContent = 'Salvando...';
+
+        const dados = new FormData();
+        dados.append('usuario_id', localStorage.getItem('usuario_id'));
+        dados.append('produto_id', produto_id);
+        dados.append('tipo',       tipo);
+        dados.append('quantidade', quantidade);
+        dados.append('observacao', observacao);
+
+        try {
+            const res  = await fetch(`${SERVER_URL}/salvar_movimentacao.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status === 'sucesso') {
+                fecharOverlayMovimentacao();
+                await carregarEstoque();
+            } else {
+                alert('❌ ' + json.mensagem);
+            }
+        } catch(e) {
+            alert('Erro na conexão com o servidor.');
+        } finally {
+            btn.disabled = false; btn.textContent = 'CONFIRMAR';
+        }
+    }
+
+    async function definirMinimoPrompt(produtoId, nomeProduto, minimoAtual) {
+        const novoMinimo = prompt(
+            `Estoque mínimo para "${nomeProduto}":\n(Deixe 0 para desativar o alerta)`,
+            minimoAtual
+        );
+        if (novoMinimo === null) return;
+        if (isNaN(parseFloat(novoMinimo)) || parseFloat(novoMinimo) < 0) {
+            alert('Valor inválido. Use 0 ou maior.');
+            return;
+        }
+
+        const dados = new FormData();
+        dados.append('usuario_id',     localStorage.getItem('usuario_id'));
+        dados.append('produto_id',     produtoId);
+        dados.append('estoque_minimo', novoMinimo);
+        try {
+            const res  = await fetch(`${SERVER_URL}/atualizar_estoque_minimo.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status === 'sucesso') {
+                await carregarEstoque();
+            } else {
+                alert('❌ ' + json.mensagem);
+            }
+        } catch(e) {
+            alert('Erro na conexão com o servidor.');
+        }
+    }
+    // ---- FIM ESTOQUE ----
 
     // ---- RELATÓRIOS ----
     let dadosRelatorio = null;
