@@ -142,6 +142,11 @@
         .alerta-banner { background:#f8d7da; border:1px solid #f5c6cb; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px; }
         .alerta-banner-txt { font-size:13px; color:#721c24; font-weight:bold; }
 
+        /* Edição de orçamento */
+        .hi-editado { font-size:10px; color:#856404; background:#fff3cd; border-radius:4px; padding:2px 6px; display:inline-block; margin-top:3px; }
+        #overlayEditarOrc { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; padding:15px; overflow-y:auto; }
+        .edit-orc-modal { background:white; border-radius:10px; padding:20px; max-width:500px; margin:0 auto; }
+
         /* Overlay de movimentação */
         #overlayMovimentacao { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; padding:20px; overflow-y:auto; }
         .mov-modal { background:white; border-radius:10px; padding:20px; max-width:420px; margin:0 auto; }
@@ -475,23 +480,42 @@
     <div id="telaRelatorios" class="card" style="display:none;">
         <h2>📈 Relatórios</h2>
 
-        <!-- Filtros -->
-        <div class="rel-filtros">
+        <!-- Modo de filtro -->
+        <div style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #eee;">
+            <button id="relBtnMes" onclick="trocarModoRel('mes')"
+                style="flex:1;padding:9px;border:none;background:none;font-weight:bold;color:#075e54;border-bottom:3px solid #25d366;cursor:pointer;font-size:13px;">
+                📅 Mês/Ano
+            </button>
+            <button id="relBtnPeriodo" onclick="trocarModoRel('periodo')"
+                style="flex:1;padding:9px;border:none;background:none;font-weight:bold;color:#aaa;border-bottom:3px solid transparent;cursor:pointer;font-size:13px;">
+                🗓️ Período Livre
+            </button>
+        </div>
+
+        <!-- Filtro por mês -->
+        <div id="relFiltroMes" class="rel-filtros">
             <select id="relMes">
-                <option value="1">Janeiro</option>
-                <option value="2">Fevereiro</option>
-                <option value="3">Março</option>
-                <option value="4">Abril</option>
-                <option value="5">Maio</option>
-                <option value="6">Junho</option>
-                <option value="7">Julho</option>
-                <option value="8">Agosto</option>
-                <option value="9">Setembro</option>
-                <option value="10">Outubro</option>
-                <option value="11">Novembro</option>
-                <option value="12">Dezembro</option>
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                <option value="3">Março</option><option value="4">Abril</option>
+                <option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option>
+                <option value="9">Setembro</option><option value="10">Outubro</option>
+                <option value="11">Novembro</option><option value="12">Dezembro</option>
             </select>
             <select id="relAno"></select>
+            <button class="btn-filtrar" onclick="carregarRelatorios()">🔍 Filtrar</button>
+        </div>
+
+        <!-- Filtro por período livre -->
+        <div id="relFiltroPeriodo" style="display:none;" class="rel-filtros">
+            <div style="flex:1;">
+                <label style="font-size:11px;color:#888;font-weight:bold;margin:0;">De:</label>
+                <input type="date" id="relDataInicio" style="margin-top:3px;">
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:11px;color:#888;font-weight:bold;margin:0;">Até:</label>
+                <input type="date" id="relDataFim" style="margin-top:3px;">
+            </div>
             <button class="btn-filtrar" onclick="carregarRelatorios()">🔍 Filtrar</button>
         </div>
 
@@ -552,6 +576,38 @@
         <!-- Aba movimentações -->
         <div id="painelMovimentacoes" style="display:none;">
             <div id="listaMovimentacoes"></div>
+        </div>
+    </div>
+
+    <!-- OVERLAY EDITAR ORÇAMENTO -->
+    <div id="overlayEditarOrc">
+        <div class="edit-orc-modal">
+            <h3 style="color:#075e54;margin-top:0;">✏️ Editar Orçamento</h3>
+            <input type="hidden" id="editOrcId">
+
+            <label>Cliente:</label>
+            <input type="text" id="editOrcCliente" placeholder="Nome do cliente">
+
+            <label style="margin-top:12px;">Itens do Orçamento:</label>
+            <div id="editOrcItens" style="margin-top:5px;"></div>
+            <button onclick="adicionarItemEdicao()" class="btn-add-item" style="margin-top:6px;">+ Adicionar Item</button>
+
+            <div class="total-box" style="margin-top:8px;">Total: R$ <strong id="editOrcTotal">0,00</strong></div>
+
+            <label style="margin-top:12px;">Motivo da edição <span style="color:#dc3545;">*</span></label>
+            <input type="text" id="editOrcMotivo" placeholder="Ex: Cliente solicitou acréscimo de item, correção de valor...">
+            <p style="font-size:11px;color:#888;margin:4px 0 0;">Este registro ficará salvo para fins de auditoria.</p>
+
+            <!-- Histórico de edições anteriores -->
+            <div id="editOrcHistorico" style="margin-top:12px;display:none;">
+                <p style="font-size:12px;font-weight:bold;color:#856404;margin:0 0 5px;">📋 Histórico de edições:</p>
+                <div id="editOrcHistoricoLista"></div>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:14px;">
+                <button id="btnSalvarEdicaoOrc" onclick="salvarEdicaoOrcamento()" class="btn-salvar" style="flex:1;padding:12px;">SALVAR ALTERAÇÕES</button>
+                <button onclick="fecharEditarOrc()" class="btn-voltar" style="margin-bottom:0;">CANCELAR</button>
+            </div>
         </div>
     </div>
 
@@ -1026,7 +1082,7 @@ CREATE TABLE movimentacoes_estoque (
 
         const lista = document.getElementById('listaPosicaoEstoque');
         if (produtos.length === 0) {
-            lista.innerHTML = '<p style="color:#999;text-align:center;margin-top:20px;">Nenhum produto cadastrado.<br>Cadastre produtos no Catálogo primeiro.</p>';
+            lista.innerHTML = '<p style="color:#999;text-align:center;margin-top:20px;">Nenhum produto cadastrado.<br>Serviços não têm estoque — cadastre itens do tipo <strong>Produto</strong> no Catálogo.</p>';
             return;
         }
 
@@ -1196,6 +1252,18 @@ CREATE TABLE movimentacoes_estoque (
 
     // ---- RELATÓRIOS ----
     let dadosRelatorio = null;
+    let modoRelatorio  = 'mes';
+
+    function trocarModoRel(modo) {
+        modoRelatorio = modo;
+        const isMes = modo === 'mes';
+        document.getElementById('relFiltroMes').style.display     = isMes ? 'flex' : 'none';
+        document.getElementById('relFiltroPeriodo').style.display  = isMes ? 'none' : 'flex';
+        document.getElementById('relBtnMes').style.color           = isMes ? '#075e54' : '#aaa';
+        document.getElementById('relBtnMes').style.borderBottomColor = isMes ? '#25d366' : 'transparent';
+        document.getElementById('relBtnPeriodo').style.color       = isMes ? '#aaa' : '#075e54';
+        document.getElementById('relBtnPeriodo').style.borderBottomColor = isMes ? 'transparent' : '#25d366';
+    }
 
     function abrirRelatorios() {
         alternarTelas('relatorios');
@@ -1215,6 +1283,14 @@ CREATE TABLE movimentacoes_estoque (
         document.getElementById('relMes').value = new Date().getMonth() + 1;
         document.getElementById('relAno').value = anoAtual;
 
+        // Datas padrão para período livre: início e fim do mês atual
+        const hoje = new Date();
+        const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+        const ultimoDia   = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
+        document.getElementById('relDataInicio').value = primeiroDia;
+        document.getElementById('relDataFim').value    = ultimoDia;
+
+        trocarModoRel('mes');
         carregarRelatorios();
     }
 
@@ -1231,8 +1307,18 @@ CREATE TABLE movimentacoes_estoque (
 
         const dados = new FormData();
         dados.append('usuario_id', usuario_id);
-        dados.append('mes', mes);
-        dados.append('ano', ano);
+        dados.append('modo', modoRelatorio);
+        if (modoRelatorio === 'periodo') {
+            const di = document.getElementById('relDataInicio').value;
+            const df = document.getElementById('relDataFim').value;
+            if (!di || !df) { alert('Informe as datas de início e fim.'); return; }
+            if (di > df) { alert('A data de início não pode ser maior que a data fim.'); return; }
+            dados.append('data_inicio', di);
+            dados.append('data_fim', df);
+        } else {
+            dados.append('mes', document.getElementById('relMes').value);
+            dados.append('ano', document.getElementById('relAno').value);
+        }
 
         try {
             const res  = await fetch(`${SERVER_URL}/buscar_relatorios.php`, { method:'POST', body:dados });
@@ -1263,9 +1349,11 @@ CREATE TABLE movimentacoes_estoque (
         // Monta HTML das seções
         let html = '';
 
+        const labelPeriodo = d.modo === 'periodo' ? d.label_periodo : `${meses[d.mes]}/${d.ano}`;
+
         // --- Top Clientes ---
         html += `<div class="rel-secao">
-            <p class="rel-secao-titulo">🏆 Top Clientes — ${meses[d.mes]}/${d.ano}</p>`;
+            <p class="rel-secao-titulo">🏆 Top Clientes — ${labelPeriodo}</p>`;
         if (d.top_clientes.length === 0) {
             html += '<p style="color:#999;font-size:12px;text-align:center;">Nenhum orçamento neste período.</p>';
         } else {
@@ -1295,7 +1383,7 @@ CREATE TABLE movimentacoes_estoque (
 
         // --- Lista de orçamentos ---
         html += `<div class="rel-secao">
-            <p class="rel-secao-titulo">📋 Orçamentos de ${meses[d.mes]}/${d.ano}</p>`;
+            <p class="rel-secao-titulo">📋 Orçamentos — ${labelPeriodo}</p>`;
         if (d.orcamentos.length === 0) {
             html += '<p style="color:#999;font-size:12px;text-align:center;">Nenhum orçamento neste período.</p>';
         } else {
@@ -1319,7 +1407,7 @@ CREATE TABLE movimentacoes_estoque (
         if (d.despesas_lista.length > 0) {
             const catLabels = { materiais:'Materiais', servicos:'Serv. Terceiros', transporte:'Transporte', alimentacao:'Alimentação', outros:'Outros' };
             html += `<div class="rel-secao">
-                <p class="rel-secao-titulo">💸 Despesas de ${meses[d.mes]}/${d.ano}</p>`;
+                <p class="rel-secao-titulo">💸 Despesas — ${labelPeriodo}</p>`;
             d.despesas_lista.forEach(dp => {
                 html += `<div class="top-cliente">
                     <span style="font-size:13px;">${dp.descricao} <span class="cat-badge">${catLabels[dp.categoria] || dp.categoria}</span></span>
@@ -2077,7 +2165,7 @@ CREATE TABLE movimentacoes_estoque (
                 dados.append('usuario_id', usuario_id);
                 const resposta = await fetch(`${SERVER_URL}/buscar_orcamentos.php`, { method: 'POST', body: dados });
                 const resultado = await resposta.json();
-                if(resultado.status === 'sucesso') historico = resultado.orcamentos;
+                if(resultado.status === 'sucesso') { historico = resultado.orcamentos; cacheHistorico = historico; }
             } catch(e) {
                 historico = JSON.parse(localStorage.getItem('historico') || '[]');
             }
@@ -2089,11 +2177,17 @@ CREATE TABLE movimentacoes_estoque (
         }
 
         lista.innerHTML = historico.map(h => {
-            const itens = Array.isArray(h.itens) ? h.itens : JSON.parse(h.itens || '[]');
+            const itens    = Array.isArray(h.itens) ? h.itens : JSON.parse(h.itens || '[]');
             const itensStr = itens.map(i => i.desc).join(', ');
             const totalStr = Number(h.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             const tipoIcon = h.tipo === 'whatsapp' ? '📱 WhatsApp' : '📄 PDF';
-            const data = h.criado_em || h.data;
+            const data     = h.criado_em || h.data;
+            const editado  = h.editado_em
+                ? `<span class="hi-editado">✏️ Editado em ${h.editado_em} por ${h.editado_por}</span>`
+                : '';
+            const btnEditar = h.id
+                ? `<button onclick="abrirEditarOrc(${h.id})" style="background:#ffc107;color:#333;border:none;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:bold;">✏️ Editar</button>`
+                : '';
             return `
                 <div class="historico-item">
                     <div class="hi-header">
@@ -2101,13 +2195,136 @@ CREATE TABLE movimentacoes_estoque (
                         <span class="hi-data">${data}</span>
                     </div>
                     <div style="font-size:12px;color:#666;margin-top:4px;">${itensStr}</div>
+                    ${editado}
                     <div class="hi-header" style="margin-top:6px;">
                         <span class="hi-total">R$ ${totalStr}</span>
-                        <span class="hi-tipo">${tipoIcon}</span>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span class="hi-tipo">${tipoIcon}</span>
+                            ${btnEditar}
+                        </div>
                     </div>
                 </div>`;
         }).join('');
     }
+
+    // ---- EDIÇÃO DE ORÇAMENTO ----
+    let cacheHistorico = [];
+
+    function abrirEditarOrc(id) {
+        const h = cacheHistorico.find(x => x.id == id);
+        if (!h) { alert('Orçamento não encontrado.'); return; }
+
+        document.getElementById('editOrcId').value      = id;
+        document.getElementById('editOrcCliente').value = h.cliente;
+        document.getElementById('editOrcMotivo').value  = '';
+
+        // Monta itens editáveis
+        const itens = Array.isArray(h.itens) ? h.itens : JSON.parse(h.itens || '[]');
+        const container = document.getElementById('editOrcItens');
+        container.innerHTML = '';
+        itens.forEach(i => adicionarItemEdicao(i.desc, i.val));
+        if (itens.length === 0) adicionarItemEdicao();
+        calcularTotalEdicao();
+
+        // Histórico de edições anteriores
+        const hist = h.historico_edicoes || [];
+        const histDiv = document.getElementById('editOrcHistorico');
+        if (hist.length > 0) {
+            histDiv.style.display = 'block';
+            document.getElementById('editOrcHistoricoLista').innerHTML = hist.map(e =>
+                `<div style="font-size:11px;color:#856404;padding:4px 0;border-bottom:1px solid #fde9b3;">
+                    📌 <strong>${e.por}</strong> em ${e.em} — ${e.motivo}
+                </div>`
+            ).join('');
+        } else {
+            histDiv.style.display = 'none';
+        }
+
+        document.getElementById('overlayEditarOrc').style.display = 'block';
+        document.getElementById('editOrcCliente').focus();
+    }
+
+    function fecharEditarOrc() {
+        document.getElementById('overlayEditarOrc').style.display = 'none';
+    }
+
+    function adicionarItemEdicao(desc = '', val = '') {
+        const container = document.getElementById('editOrcItens');
+        const div = document.createElement('div');
+        div.className = 'item-orcamento';
+        div.innerHTML = `
+            <input type="text" class="edit-item-desc" placeholder="Descrição" value="${desc}"
+                style="width:100%;padding:10px;margin-top:0;border-radius:5px;border:1px solid #ddd;box-sizing:border-box;">
+            <div class="item-row">
+                <input type="number" class="edit-item-val" placeholder="Valor (R$)" value="${val}"
+                    oninput="calcularTotalEdicao()"
+                    style="padding:10px;border-radius:5px;border:1px solid #ddd;box-sizing:border-box;">
+                <button class="btn-remover" onclick="removerItemEdicao(this)">✕</button>
+            </div>`;
+        container.appendChild(div);
+    }
+
+    function removerItemEdicao(btn) {
+        const container = document.getElementById('editOrcItens');
+        if (container.children.length === 1) { alert('O orçamento precisa ter pelo menos um item.'); return; }
+        btn.closest('.item-orcamento').remove();
+        calcularTotalEdicao();
+    }
+
+    function calcularTotalEdicao() {
+        let total = 0;
+        document.querySelectorAll('.edit-item-val').forEach(v => total += parseFloat(v.value) || 0);
+        document.getElementById('editOrcTotal').textContent = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        return total;
+    }
+
+    async function salvarEdicaoOrcamento() {
+        const id      = document.getElementById('editOrcId').value;
+        const cliente = document.getElementById('editOrcCliente').value.trim();
+        const motivo  = document.getElementById('editOrcMotivo').value.trim();
+
+        if (!cliente) { alert('O nome do cliente é obrigatório.'); return; }
+        if (motivo.length < 5) { alert('Informe o motivo da edição (mínimo 5 caracteres).'); return; }
+
+        const itens = [];
+        document.querySelectorAll('#editOrcItens .item-orcamento').forEach(row => {
+            const desc = row.querySelector('.edit-item-desc').value.trim();
+            const val  = parseFloat(row.querySelector('.edit-item-val').value) || 0;
+            if (desc) itens.push({ desc, val });
+        });
+        if (itens.length === 0) { alert('Adicione pelo menos um item.'); return; }
+
+        const total       = calcularTotalEdicao();
+        const editor_nome = localStorage.getItem('usuario_nome') || 'Usuário';
+
+        const btn = document.getElementById('btnSalvarEdicaoOrc');
+        btn.disabled = true; btn.textContent = 'Salvando...';
+
+        const dados = new FormData();
+        dados.append('usuario_id',   localStorage.getItem('usuario_id'));
+        dados.append('orcamento_id', id);
+        dados.append('cliente',      cliente);
+        dados.append('itens',        JSON.stringify(itens));
+        dados.append('total',        total);
+        dados.append('motivo',       motivo);
+        dados.append('editor_nome',  editor_nome);
+
+        try {
+            const res  = await fetch(`${SERVER_URL}/editar_orcamento.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status === 'sucesso') {
+                fecharEditarOrc();
+                await verHistorico();
+            } else {
+                alert('❌ ' + json.mensagem);
+            }
+        } catch(e) {
+            alert('Erro na conexão com o servidor.');
+        } finally {
+            btn.disabled = false; btn.textContent = 'SALVAR ALTERAÇÕES';
+        }
+    }
+    // ---- FIM EDIÇÃO DE ORÇAMENTO ----
 
     function fazerLogout() {
         if(confirm("Deseja realmente sair?")) {

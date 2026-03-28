@@ -14,7 +14,8 @@ if(!$usuario_id || !is_numeric($usuario_id)) {
 
 try {
     $stmt = $conn->prepare(
-        "SELECT cliente, itens, total, tipo, criado_em
+        "SELECT id, cliente, itens, total, tipo, criado_em,
+                editado_em, editado_por, historico_edicoes
          FROM orcamentos
          WHERE usuario_id = :uid
          ORDER BY criado_em DESC
@@ -24,8 +25,12 @@ try {
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach($rows as &$row) {
-        $row['itens']     = json_decode($row['itens'], true);
-        $row['criado_em'] = date('d/m/Y H:i', strtotime($row['criado_em']));
+        $row['itens']             = json_decode($row['itens'], true);
+        $row['historico_edicoes'] = json_decode($row['historico_edicoes'] ?? '[]', true) ?: [];
+        $row['criado_em']         = date('d/m/Y H:i', strtotime($row['criado_em']));
+        if ($row['editado_em']) {
+            $row['editado_em'] = date('d/m/Y H:i', strtotime($row['editado_em']));
+        }
     }
 
     echo json_encode(["status" => "sucesso", "orcamentos" => $rows]);

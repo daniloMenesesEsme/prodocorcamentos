@@ -12,8 +12,8 @@ try {
         SELECT id, nome, categoria, unidade, preco, estoque_atual, estoque_minimo,
                CASE WHEN estoque_minimo > 0 AND estoque_atual <= estoque_minimo THEN 1 ELSE 0 END as alerta
         FROM produtos_servicos
-        WHERE usuario_id = ?
-        ORDER BY alerta DESC, categoria ASC, nome ASC
+        WHERE usuario_id = ? AND categoria = 'produto'
+        ORDER BY alerta DESC, nome ASC
     ");
     $stmt->execute([$usuario_id]);
     $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
