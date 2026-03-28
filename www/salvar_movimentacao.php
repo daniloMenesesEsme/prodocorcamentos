@@ -14,6 +14,7 @@ try {
     if (!$produto_id) { echo json_encode(['status'=>'erro','mensagem'=>'Produto inválido.']); exit; }
     if (!in_array($tipo, ['entrada','saida','ajuste'])) { echo json_encode(['status'=>'erro','mensagem'=>'Tipo inválido.']); exit; }
     if ($quantidade <= 0) { echo json_encode(['status'=>'erro','mensagem'=>'Quantidade deve ser maior que zero.']); exit; }
+    if (strlen($observacao) < 3) { echo json_encode(['status'=>'erro','mensagem'=>'Justificativa obrigatória (mínimo 3 caracteres).']); exit; }
 
     // Verifica se o produto pertence ao usuário
     $stmt = $conn->prepare("SELECT id, nome, estoque_atual FROM produtos_servicos WHERE id = ? AND usuario_id = ?");

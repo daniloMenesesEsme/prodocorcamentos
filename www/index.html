@@ -571,8 +571,8 @@
                 Estoque atual: <strong id="movEstoqueAtualVal"></strong>
             </div>
 
-            <label>Observação (opcional):</label>
-            <input type="text" id="movObservacao" placeholder="Ex: Compra fornecedor X">
+            <label>Justificativa <span style="color:#dc3545;">*</span> <span style="font-size:10px;color:#888;font-weight:normal;">(obrigatório para fins fiscais)</span></label>
+            <input type="text" id="movObservacao" placeholder="Ex: Compra NF 001, Uso serviço cliente X, Inventário...">
 
             <div style="display:flex;gap:8px;margin-top:14px;">
                 <button id="btnConfirmarMov" onclick="confirmarMovimentacao()" class="btn-salvar" style="flex:1;padding:12px;">CONFIRMAR</button>
@@ -981,7 +981,30 @@
         try {
             const res  = await fetch(`${SERVER_URL}/listar_estoque.php`, { method:'POST', body:dados });
             const json = await res.json();
-            if (json.status !== 'sucesso') return;
+            if (json.status !== 'sucesso') {
+                document.getElementById('listaPosicaoEstoque').innerHTML =
+                    `<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:14px;margin-top:10px;">
+                        <p style="margin:0;font-weight:bold;color:#856404;">⚠️ Banco de dados não configurado</p>
+                        <p style="margin:8px 0 0;font-size:13px;color:#856404;">Execute o SQL abaixo no MySQL Workbench para ativar o controle de estoque:</p>
+                        <pre style="background:#f8f9fa;padding:10px;border-radius:5px;font-size:11px;margin-top:8px;overflow-x:auto;">ALTER TABLE produtos_servicos ADD COLUMN estoque_atual DECIMAL(10,2) DEFAULT 0;
+ALTER TABLE produtos_servicos ADD COLUMN estoque_minimo DECIMAL(10,2) DEFAULT 0;
+
+CREATE TABLE movimentacoes_estoque (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT NOT NULL,
+  produto_id INT NOT NULL,
+  tipo ENUM('entrada','saida','ajuste') NOT NULL,
+  quantidade DECIMAL(10,2) NOT NULL,
+  estoque_anterior DECIMAL(10,2) DEFAULT 0,
+  estoque_resultante DECIMAL(10,2) DEFAULT 0,
+  observacao VARCHAR(200) NOT NULL,
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+  FOREIGN KEY (produto_id) REFERENCES produtos_servicos(id)
+);</pre>
+                    </div>`;
+                return;
+            }
             cacheEstoque = json.produtos;
             renderizarPosicaoEstoque(json.produtos, json.qtd_alertas);
             renderizarMovimentacoes(json.movimentacoes);
@@ -1108,6 +1131,11 @@
 
         if (!quantidade || parseFloat(quantidade) <= 0) {
             alert('Informe uma quantidade válida.');
+            return;
+        }
+        if (!observacao || observacao.length < 3) {
+            alert('A justificativa é obrigatória (mínimo 3 caracteres).\nEx: "Compra NF 001", "Uso em serviço cliente X", "Correção de inventário".');
+            document.getElementById('movObservacao').focus();
             return;
         }
 
