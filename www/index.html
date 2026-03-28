@@ -57,6 +57,46 @@
         .catalogo-item { display:flex; justify-content:space-between; align-items:center; background:white; padding:12px; border-radius:8px; margin-bottom:8px; cursor:pointer; border:2px solid transparent; }
         .catalogo-item:active { border-color:#25d366; }
 
+        /* Dashboard */
+        .dash-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:15px 0; }
+        .dash-card { background:#f0f7ff; border-radius:10px; padding:14px 12px; text-align:center; border-left:4px solid #34b7f1; }
+        .dash-card.verde { background:#f0fff4; border-left-color:#25d366; }
+        .dash-card.vermelho { background:#fff5f5; border-left-color:#dc3545; }
+        .dash-card.roxo { background:#f8f0ff; border-left-color:#6f42c1; }
+        .dash-numero { font-size:22px; font-weight:bold; color:#075e54; }
+        .dash-label { font-size:11px; color:#888; margin-top:3px; }
+        .top-cliente { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0; }
+        .top-cliente:last-child { border-bottom:none; }
+        .mes-bar-row { display:flex; align-items:center; gap:8px; margin:4px 0; }
+        .mes-bar-label { font-size:11px; color:#666; width:50px; text-align:right; flex-shrink:0; }
+        .mes-bar-track { flex:1; background:#eee; border-radius:4px; height:12px; overflow:hidden; }
+        .mes-bar-fill { background:#25d366; height:100%; border-radius:4px; transition:width 0.4s; }
+        .mes-bar-val { font-size:11px; color:#075e54; font-weight:bold; width:70px; flex-shrink:0; }
+
+        /* Clientes */
+        .cliente-item { display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; padding:10px 12px; border-radius:8px; margin-bottom:8px; border-left:4px solid #6f42c1; }
+        .cliente-info { flex:1; }
+        .cliente-nome { font-weight:bold; color:#075e54; font-size:14px; }
+        .cliente-detalhe { font-size:12px; color:#888; margin-top:2px; }
+
+        /* Financeiro */
+        .fin-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin:15px 0; }
+        .fin-card { border-radius:10px; padding:12px 8px; text-align:center; }
+        .fin-numero { font-size:18px; font-weight:bold; }
+        .fin-label { font-size:10px; color:#888; margin-top:2px; }
+        .despesa-item { display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; padding:10px 12px; border-radius:8px; margin-bottom:8px; border-left:4px solid #dc3545; }
+        .despesa-info { flex:1; }
+        .despesa-nome { font-weight:bold; color:#333; font-size:13px; }
+        .despesa-detalhe { font-size:11px; color:#888; margin-top:2px; }
+        .cat-badge { display:inline-block; background:#e9ecef; border-radius:4px; padding:1px 6px; font-size:10px; color:#555; }
+
+        /* Overlay Mais */
+        #overlayMais { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:200; }
+        .mais-menu { position:absolute; bottom:70px; left:50%; transform:translateX(-50%); background:white; border-radius:12px; padding:15px; width:280px; box-shadow:0 4px 20px rgba(0,0,0,0.2); }
+        .mais-btn { display:flex; align-items:center; gap:12px; padding:14px 10px; border-radius:8px; cursor:pointer; font-size:15px; font-weight:bold; color:#333; border:none; background:none; width:100%; text-align:left; }
+        .mais-btn:hover, .mais-btn:active { background:#f0f7ff; }
+        .mais-btn span { font-size:22px; }
+
         /* Estilo para esconder as telas */
         #telaPrincipal { display: none; }
     </style>
@@ -123,7 +163,6 @@
                 <label>Seu WhatsApp (com DDD):</label>
                 <input type="text" id="meuZap" placeholder="Ex: 85998115669">
                 <button id="btnSalvar" class="btn-salvar" onclick="salvarMeusDados()">SALVAR MEUS DADOS</button>
-                <button onclick="fazerLogout()" style="background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 6px; margin-top: 20px; cursor: pointer; border-radius: 8px; width: 100%; font-weight: bold; font-size: 14px; display: flex; align-items: center; justify-content: center;"><span style="margin-right: 8px;">🚪</span> SAIR DO SISTEMA</button>
             </div>
 
             <hr>
@@ -205,17 +244,20 @@
 
     <!-- MENU DE NAVEGAÇÃO INFERIOR -->
     <div id="bottomNav">
-        <button class="nav-btn ativo" id="navInicio" onclick="alternarTelas('principal')">
+        <button class="nav-btn ativo" id="navInicio" onclick="alternarTelas('principal')" style="padding:4px 10px;">
             🏠<br><small>Início</small>
         </button>
-        <button class="nav-btn" id="navEmpresa" onclick="abrirEmpresa()">
-            🏢<br><small>Empresa</small>
+        <button class="nav-btn" id="navDashboard" onclick="abrirDashboard()" style="padding:4px 10px;">
+            📊<br><small>Dashboard</small>
         </button>
-        <button class="nav-btn" id="navProdutos" onclick="abrirProdutos()">
-            📦<br><small>Catálogo</small>
+        <button class="nav-btn" id="navClientes" onclick="abrirClientes()" style="padding:4px 10px;">
+            👥<br><small>Clientes</small>
         </button>
-        <button class="nav-btn" id="navHistorico" onclick="verHistorico()">
-            📋<br><small>Histórico</small>
+        <button class="nav-btn" id="navFinanceiro" onclick="abrirFinanceiro()" style="padding:4px 10px;">
+            💰<br><small>Financeiro</small>
+        </button>
+        <button class="nav-btn" id="navMais" onclick="abrirMais()" style="padding:4px 10px;">
+            ☰<br><small>Mais</small>
         </button>
     </div>
 
@@ -257,6 +299,140 @@
         <div id="listaProdutos" style="margin-top:10px;"></div>
     </div>
 
+    <!-- 7. TELA DE DASHBOARD -->
+    <div id="telaDashboard" class="card" style="display:none;">
+        <h2>📊 Dashboard</h2>
+        <p style="text-align:center;font-size:12px;color:#666;margin:0 0 5px;" id="dashMesLabel"></p>
+
+        <div class="dash-grid">
+            <div class="dash-card verde">
+                <div class="dash-numero" id="dashOrcMes">0</div>
+                <div class="dash-label">Orçamentos este mês</div>
+            </div>
+            <div class="dash-card verde">
+                <div class="dash-numero" id="dashReceitaMes">R$ 0</div>
+                <div class="dash-label">Receita este mês</div>
+            </div>
+            <div class="dash-card vermelho">
+                <div class="dash-numero" id="dashDespesasMes">R$ 0</div>
+                <div class="dash-label">Despesas este mês</div>
+            </div>
+            <div class="dash-card roxo">
+                <div class="dash-numero" id="dashSaldoMes">R$ 0</div>
+                <div class="dash-label">Saldo do mês</div>
+            </div>
+        </div>
+
+        <div style="background:#f9f9f9;border-radius:8px;padding:12px;margin-top:5px;">
+            <p style="font-weight:bold;color:#075e54;margin:0 0 8px;font-size:13px;">📦 Totais gerais</p>
+            <div class="dash-grid" style="margin:0;">
+                <div class="dash-card" style="margin:0;">
+                    <div class="dash-numero" id="dashTotalOrc">0</div>
+                    <div class="dash-label">Total de orçamentos</div>
+                </div>
+                <div class="dash-card" style="margin:0;">
+                    <div class="dash-numero" id="dashReceitaTotal">R$ 0</div>
+                    <div class="dash-label">Receita total acumulada</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="background:#f9f9f9;border-radius:8px;padding:12px;margin-top:10px;" id="dashTopSection">
+            <p style="font-weight:bold;color:#075e54;margin:0 0 8px;font-size:13px;">🏆 Top clientes</p>
+            <div id="dashTopClientes"></div>
+        </div>
+
+        <div style="background:#f9f9f9;border-radius:8px;padding:12px;margin-top:10px;" id="dashHistSection">
+            <p style="font-weight:bold;color:#075e54;margin:0 0 8px;font-size:13px;">📅 Receita — últimos 6 meses</p>
+            <div id="dashHistMeses"></div>
+        </div>
+    </div>
+
+    <!-- 8. TELA DE CLIENTES -->
+    <div id="telaClientes" class="card" style="display:none;">
+        <h2>👥 Clientes</h2>
+
+        <div id="formCliente" class="form-produto" style="display:none;">
+            <input type="hidden" id="cliId">
+            <label>Nome:</label>
+            <input type="text" id="cliNome" placeholder="Nome completo do cliente">
+            <label>WhatsApp:</label>
+            <input type="text" id="cliWhatsapp" placeholder="85999999999">
+            <label>E-mail:</label>
+            <input type="email" id="cliEmail" placeholder="cliente@email.com">
+            <label>CPF ou CNPJ:</label>
+            <input type="text" id="cliCpfCnpj" placeholder="000.000.000-00">
+            <label>Cidade:</label>
+            <input type="text" id="cliCidade" placeholder="Ex: Fortaleza - CE">
+            <label>Observações:</label>
+            <input type="text" id="cliObs" placeholder="Informações adicionais...">
+            <div style="display:flex;gap:8px;margin-top:12px;">
+                <button id="btnSalvarCliente" onclick="salvarCliente()" class="btn-salvar" style="flex:1;padding:12px;">SALVAR</button>
+                <button onclick="fecharFormCliente()" class="btn-voltar" style="margin-bottom:0;">CANCELAR</button>
+            </div>
+        </div>
+
+        <button onclick="mostrarFormCliente()" class="btn-salvar" style="background:#6f42c1;padding:12px;margin-bottom:5px;">+ NOVO CLIENTE</button>
+        <div id="listaClientes" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- 9. TELA FINANCEIRO -->
+    <div id="telaFinanceiro" class="card" style="display:none;">
+        <h2>💰 Financeiro</h2>
+
+        <div class="fin-grid">
+            <div class="fin-card" style="background:#f0fff4;">
+                <div class="fin-numero" style="color:#25d366;" id="finReceita">R$ 0</div>
+                <div class="fin-label">Receitas do mês</div>
+            </div>
+            <div class="fin-card" style="background:#fff5f5;">
+                <div class="fin-numero" style="color:#dc3545;" id="finDespesas">R$ 0</div>
+                <div class="fin-label">Despesas do mês</div>
+            </div>
+            <div class="fin-card" style="background:#f8f0ff;">
+                <div class="fin-numero" style="color:#6f42c1;" id="finSaldo">R$ 0</div>
+                <div class="fin-label">Saldo do mês</div>
+            </div>
+        </div>
+
+        <div id="formDespesa" class="form-produto" style="display:none;">
+            <input type="hidden" id="despId">
+            <label>Descrição:</label>
+            <input type="text" id="despDescricao" placeholder="Ex: Combustível, material...">
+            <label>Valor (R$):</label>
+            <input type="number" id="despValor" placeholder="0.00" step="0.01" min="0.01">
+            <label>Categoria:</label>
+            <select id="despCategoria">
+                <option value="materiais">Materiais</option>
+                <option value="servicos">Serviços terceiros</option>
+                <option value="transporte">Transporte</option>
+                <option value="alimentacao">Alimentação</option>
+                <option value="outros">Outros</option>
+            </select>
+            <label>Data:</label>
+            <input type="date" id="despData">
+            <div style="display:flex;gap:8px;margin-top:12px;">
+                <button id="btnSalvarDespesa" onclick="salvarDespesa()" class="btn-salvar" style="flex:1;padding:12px;">SALVAR</button>
+                <button onclick="fecharFormDespesa()" class="btn-voltar" style="margin-bottom:0;">CANCELAR</button>
+            </div>
+        </div>
+
+        <button onclick="mostrarFormDespesa()" class="btn-salvar" style="background:#dc3545;padding:12px;margin-bottom:5px;">+ LANÇAR DESPESA</button>
+
+        <div id="listaDespesas" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- OVERLAY MAIS -->
+    <div id="overlayMais" onclick="fecharMais()">
+        <div class="mais-menu" onclick="event.stopPropagation()">
+            <p style="margin:0 0 10px;font-size:12px;color:#999;text-align:center;">ACESSO RÁPIDO</p>
+            <button class="mais-btn" onclick="fecharMais();abrirEmpresa()"><span>🏢</span> Minha Empresa</button>
+            <button class="mais-btn" onclick="fecharMais();abrirProdutos()"><span>📦</span> Catálogo de Produtos</button>
+            <button class="mais-btn" onclick="fecharMais();verHistorico()"><span>📋</span> Histórico de Orçamentos</button>
+            <button class="mais-btn" onclick="fecharMais();fazerLogout()" style="color:#dc3545;"><span>🚪</span> Sair do Sistema</button>
+        </div>
+    </div>
+
     <!-- OVERLAY DO CATÁLOGO (para uso no orçamento) -->
     <div id="overlayCatalogo">
         <div style="background:white;border-radius:10px;padding:20px;max-width:500px;margin:0 auto;">
@@ -284,27 +460,32 @@
     };
 
     function alternarTelas(qual) {
-        ['telaLogin','telaCadastro','telaPrincipal','telaHistorico','telaEmpresa','telaProdutos'].forEach(id => {
+        ['telaLogin','telaCadastro','telaPrincipal','telaHistorico','telaEmpresa','telaProdutos',
+         'telaDashboard','telaClientes','telaFinanceiro'].forEach(id => {
             document.getElementById(id).style.display = 'none';
         });
 
-        const telasLogadas = ['principal','empresa','historico','produtos'];
+        const telasLogadas = ['principal','empresa','historico','produtos','dashboard','clientes','financeiro'];
         document.getElementById('bottomNav').style.display = telasLogadas.includes(qual) ? 'flex' : 'none';
 
-        if(qual === 'login')     document.getElementById('telaLogin').style.display = 'block';
-        if(qual === 'cadastro')  document.getElementById('telaCadastro').style.display = 'block';
-        if(qual === 'principal') document.getElementById('telaPrincipal').style.display = 'block';
-        if(qual === 'historico') document.getElementById('telaHistorico').style.display = 'block';
-        if(qual === 'empresa')   document.getElementById('telaEmpresa').style.display = 'block';
-        if(qual === 'produtos')  document.getElementById('telaProdutos').style.display = 'block';
+        if(qual === 'login')      document.getElementById('telaLogin').style.display = 'block';
+        if(qual === 'cadastro')   document.getElementById('telaCadastro').style.display = 'block';
+        if(qual === 'principal')  document.getElementById('telaPrincipal').style.display = 'block';
+        if(qual === 'historico')  document.getElementById('telaHistorico').style.display = 'block';
+        if(qual === 'empresa')    document.getElementById('telaEmpresa').style.display = 'block';
+        if(qual === 'produtos')   document.getElementById('telaProdutos').style.display = 'block';
+        if(qual === 'dashboard')  document.getElementById('telaDashboard').style.display = 'block';
+        if(qual === 'clientes')   document.getElementById('telaClientes').style.display = 'block';
+        if(qual === 'financeiro') document.getElementById('telaFinanceiro').style.display = 'block';
 
-        ['navInicio','navEmpresa','navProdutos','navHistorico'].forEach(id => {
+        ['navInicio','navDashboard','navClientes','navFinanceiro','navMais'].forEach(id => {
             document.getElementById(id).classList.remove('ativo');
         });
-        if(qual === 'principal') document.getElementById('navInicio').classList.add('ativo');
-        if(qual === 'empresa')   document.getElementById('navEmpresa').classList.add('ativo');
-        if(qual === 'produtos')  document.getElementById('navProdutos').classList.add('ativo');
-        if(qual === 'historico') document.getElementById('navHistorico').classList.add('ativo');
+        if(qual === 'principal')  document.getElementById('navInicio').classList.add('ativo');
+        if(qual === 'dashboard')  document.getElementById('navDashboard').classList.add('ativo');
+        if(qual === 'clientes')   document.getElementById('navClientes').classList.add('ativo');
+        if(qual === 'financeiro') document.getElementById('navFinanceiro').classList.add('ativo');
+        if(['empresa','produtos','historico'].includes(qual)) document.getElementById('navMais').classList.add('ativo');
     }
 
     async function realizarCadastro() {
@@ -609,6 +790,315 @@
             btn.textContent = 'SALVAR DADOS DA EMPRESA';
         }
     }
+
+    // ---- DASHBOARD ----
+    async function abrirDashboard() {
+        alternarTelas('dashboard');
+        const agora = new Date();
+        document.getElementById('dashMesLabel').textContent =
+            agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+        const usuario_id = localStorage.getItem('usuario_id');
+        if (!usuario_id) return;
+        const dados = new FormData();
+        dados.append('usuario_id', usuario_id);
+        try {
+            const res  = await fetch(`${SERVER_URL}/buscar_dashboard.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status !== 'sucesso') return;
+
+            const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            document.getElementById('dashOrcMes').textContent     = json.total_mes;
+            document.getElementById('dashReceitaMes').textContent  = fmt(json.receita_mes);
+            document.getElementById('dashDespesasMes').textContent = fmt(json.despesas_mes);
+            const saldo = json.receita_mes - json.despesas_mes;
+            const saldoEl = document.getElementById('dashSaldoMes');
+            saldoEl.textContent = fmt(saldo);
+            saldoEl.style.color = saldo >= 0 ? '#075e54' : '#dc3545';
+
+            document.getElementById('dashTotalOrc').textContent     = json.total_geral;
+            document.getElementById('dashReceitaTotal').textContent  = fmt(json.receita_total);
+
+            // Top clientes
+            const topEl = document.getElementById('dashTopClientes');
+            if (json.top_clientes.length === 0) {
+                topEl.innerHTML = '<p style="color:#999;font-size:12px;text-align:center;">Nenhum orçamento ainda.</p>';
+            } else {
+                topEl.innerHTML = json.top_clientes.map((c, i) =>
+                    `<div class="top-cliente">
+                        <span style="font-size:13px;color:#333;">${['🥇','🥈','🥉','4️⃣','5️⃣'][i]} ${c.cliente} <span style="font-size:11px;color:#999;">(${c.qtd}x)</span></span>
+                        <span style="font-weight:bold;color:#25d366;font-size:13px;">${fmt(c.total)}</span>
+                     </div>`
+                ).join('');
+            }
+
+            // Histórico meses (barras simples)
+            const histEl = document.getElementById('dashHistMeses');
+            if (json.historico_meses.length === 0) {
+                histEl.innerHTML = '<p style="color:#999;font-size:12px;text-align:center;">Sem dados ainda.</p>';
+            } else {
+                const maxVal = Math.max(...json.historico_meses.map(m => parseFloat(m.receita)));
+                histEl.innerHTML = json.historico_meses.map(m => {
+                    const pct = maxVal > 0 ? (parseFloat(m.receita) / maxVal * 100).toFixed(0) : 0;
+                    return `<div class="mes-bar-row">
+                        <span class="mes-bar-label">${m.mes}</span>
+                        <div class="mes-bar-track"><div class="mes-bar-fill" style="width:${pct}%"></div></div>
+                        <span class="mes-bar-val">${fmt(m.receita)}</span>
+                    </div>`;
+                }).join('');
+            }
+        } catch(e) {
+            document.getElementById('dashTopClientes').innerHTML = '<p style="color:#999;text-align:center;">Erro ao carregar.</p>';
+        }
+    }
+    // ---- FIM DASHBOARD ----
+
+    // ---- CLIENTES ----
+    let cacheClientes = [];
+
+    async function abrirClientes() {
+        alternarTelas('clientes');
+        fecharFormCliente();
+        await carregarClientes();
+    }
+
+    async function carregarClientes() {
+        const usuario_id = localStorage.getItem('usuario_id');
+        if (!usuario_id) return;
+        const dados = new FormData();
+        dados.append('usuario_id', usuario_id);
+        try {
+            const res  = await fetch(`${SERVER_URL}/listar_clientes.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status === 'sucesso') {
+                cacheClientes = json.clientes;
+                renderizarClientes(json.clientes);
+            }
+        } catch(e) {
+            document.getElementById('listaClientes').innerHTML = '<p style="color:#999;text-align:center;">Erro ao carregar clientes.</p>';
+        }
+    }
+
+    function renderizarClientes(clientes) {
+        const lista = document.getElementById('listaClientes');
+        if (clientes.length === 0) {
+            lista.innerHTML = '<p style="color:#999;text-align:center;margin-top:20px;">Nenhum cliente cadastrado.<br>Clique em "+ NOVO CLIENTE" para começar.</p>';
+            return;
+        }
+        lista.innerHTML = clientes.map(c => {
+            const detalhe = [c.whatsapp, c.cidade].filter(Boolean).join(' · ');
+            return `<div class="cliente-item">
+                <div class="cliente-info">
+                    <div class="cliente-nome">${c.nome}</div>
+                    ${detalhe ? `<div class="cliente-detalhe">${detalhe}</div>` : ''}
+                </div>
+                <div class="produto-acoes">
+                    <button class="btn-editar" onclick="editarCliente(${c.id})">✏️</button>
+                    <button class="btn-excluir" onclick="confirmarExcluirCliente(${c.id}, '${c.nome.replace(/'/g,"\\'")}')">🗑️</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function mostrarFormCliente(cliente = null) {
+        document.getElementById('cliId').value       = cliente ? cliente.id : '';
+        document.getElementById('cliNome').value     = cliente ? cliente.nome : '';
+        document.getElementById('cliWhatsapp').value = cliente ? cliente.whatsapp : '';
+        document.getElementById('cliEmail').value    = cliente ? cliente.email : '';
+        document.getElementById('cliCpfCnpj').value  = cliente ? cliente.cpf_cnpj : '';
+        document.getElementById('cliCidade').value   = cliente ? cliente.cidade : '';
+        document.getElementById('cliObs').value      = cliente ? cliente.observacoes : '';
+        document.getElementById('formCliente').style.display = 'block';
+        document.getElementById('cliNome').focus();
+    }
+
+    function fecharFormCliente() {
+        document.getElementById('formCliente').style.display = 'none';
+    }
+
+    function editarCliente(id) {
+        const c = cacheClientes.find(x => x.id == id);
+        if (c) mostrarFormCliente(c);
+        window.scrollTo(0, 0);
+    }
+
+    async function salvarCliente() {
+        const nome = document.getElementById('cliNome').value.trim();
+        if (!nome) { alert('O nome do cliente é obrigatório.'); return; }
+
+        const btn = document.getElementById('btnSalvarCliente');
+        btn.disabled = true; btn.textContent = 'Salvando...';
+
+        const dados = new FormData();
+        dados.append('usuario_id', localStorage.getItem('usuario_id'));
+        dados.append('id',         document.getElementById('cliId').value);
+        dados.append('nome',       nome);
+        dados.append('whatsapp',   document.getElementById('cliWhatsapp').value.trim());
+        dados.append('email',      document.getElementById('cliEmail').value.trim());
+        dados.append('cpf_cnpj',   document.getElementById('cliCpfCnpj').value.trim());
+        dados.append('cidade',     document.getElementById('cliCidade').value.trim());
+        dados.append('observacoes',document.getElementById('cliObs').value.trim());
+
+        try {
+            const res  = await fetch(`${SERVER_URL}/salvar_cliente.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status === 'sucesso') {
+                fecharFormCliente();
+                await carregarClientes();
+            } else {
+                alert('❌ ' + json.mensagem);
+            }
+        } catch(e) {
+            alert('Erro na conexão com o servidor.');
+        } finally {
+            btn.disabled = false; btn.textContent = 'SALVAR';
+        }
+    }
+
+    async function confirmarExcluirCliente(id, nome) {
+        if (!confirm(`Excluir o cliente "${nome}"?`)) return;
+        const dados = new FormData();
+        dados.append('usuario_id', localStorage.getItem('usuario_id'));
+        dados.append('id', id);
+        try {
+            const res  = await fetch(`${SERVER_URL}/excluir_cliente.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status === 'sucesso') {
+                await carregarClientes();
+            } else {
+                alert('❌ ' + json.mensagem);
+            }
+        } catch(e) {
+            alert('Erro na conexão com o servidor.');
+        }
+    }
+    // ---- FIM CLIENTES ----
+
+    // ---- FINANCEIRO ----
+    async function abrirFinanceiro() {
+        alternarTelas('financeiro');
+        fecharFormDespesa();
+        // Preenche data de hoje no formulário
+        document.getElementById('despData').value = new Date().toISOString().split('T')[0];
+        await carregarFinanceiro();
+    }
+
+    async function carregarFinanceiro() {
+        const usuario_id = localStorage.getItem('usuario_id');
+        if (!usuario_id) return;
+        const dados = new FormData();
+        dados.append('usuario_id', usuario_id);
+        try {
+            const res  = await fetch(`${SERVER_URL}/listar_financeiro.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status !== 'sucesso') return;
+
+            const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            document.getElementById('finReceita').textContent  = fmt(json.receita_mes);
+            document.getElementById('finDespesas').textContent = fmt(json.despesas_mes);
+            const saldoEl = document.getElementById('finSaldo');
+            saldoEl.textContent = fmt(json.saldo_mes);
+            saldoEl.style.color = json.saldo_mes >= 0 ? '#6f42c1' : '#dc3545';
+
+            const lista = document.getElementById('listaDespesas');
+            if (json.despesas.length === 0) {
+                lista.innerHTML = '<p style="color:#999;text-align:center;margin-top:20px;">Nenhuma despesa lançada.<br>Clique em "+ LANÇAR DESPESA" para começar.</p>';
+            } else {
+                const catLabels = { materiais:'Materiais', servicos:'Serv. Terceiros', transporte:'Transporte', alimentacao:'Alimentação', outros:'Outros' };
+                lista.innerHTML = '<p style="font-weight:bold;color:#075e54;margin:5px 0 8px;font-size:13px;">📋 Despesas recentes</p>' +
+                    json.despesas.map(d => {
+                        const dataFmt = new Date(d.data_despesa + 'T12:00:00').toLocaleDateString('pt-BR');
+                        return `<div class="despesa-item">
+                            <div class="despesa-info">
+                                <div class="despesa-nome">${d.descricao}</div>
+                                <div class="despesa-detalhe">${dataFmt} · <span class="cat-badge">${catLabels[d.categoria] || d.categoria}</span></div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                                <span style="font-weight:bold;color:#dc3545;">R$ ${Number(d.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+                                <button class="btn-excluir" style="font-size:11px;padding:3px 8px;" onclick="confirmarExcluirDespesa(${d.id})">🗑️</button>
+                            </div>
+                        </div>`;
+                    }).join('');
+            }
+        } catch(e) {
+            document.getElementById('listaDespesas').innerHTML = '<p style="color:#999;text-align:center;">Erro ao carregar dados financeiros.</p>';
+        }
+    }
+
+    function mostrarFormDespesa() {
+        document.getElementById('despId').value = '';
+        document.getElementById('despDescricao').value = '';
+        document.getElementById('despValor').value = '';
+        document.getElementById('despCategoria').value = 'outros';
+        document.getElementById('despData').value = new Date().toISOString().split('T')[0];
+        document.getElementById('formDespesa').style.display = 'block';
+        document.getElementById('despDescricao').focus();
+    }
+
+    function fecharFormDespesa() {
+        document.getElementById('formDespesa').style.display = 'none';
+    }
+
+    async function salvarDespesa() {
+        const descricao = document.getElementById('despDescricao').value.trim();
+        const valor     = document.getElementById('despValor').value;
+        if (!descricao) { alert('A descrição é obrigatória.'); return; }
+        if (!valor || parseFloat(valor) <= 0) { alert('Informe um valor maior que zero.'); return; }
+
+        const btn = document.getElementById('btnSalvarDespesa');
+        btn.disabled = true; btn.textContent = 'Salvando...';
+
+        const dados = new FormData();
+        dados.append('usuario_id',  localStorage.getItem('usuario_id'));
+        dados.append('id',          document.getElementById('despId').value);
+        dados.append('descricao',   descricao);
+        dados.append('valor',       valor);
+        dados.append('categoria',   document.getElementById('despCategoria').value);
+        dados.append('data_despesa',document.getElementById('despData').value);
+
+        try {
+            const res  = await fetch(`${SERVER_URL}/salvar_despesa.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status === 'sucesso') {
+                fecharFormDespesa();
+                await carregarFinanceiro();
+            } else {
+                alert('❌ ' + json.mensagem);
+            }
+        } catch(e) {
+            alert('Erro na conexão com o servidor.');
+        } finally {
+            btn.disabled = false; btn.textContent = 'SALVAR';
+        }
+    }
+
+    async function confirmarExcluirDespesa(id) {
+        if (!confirm('Excluir esta despesa?')) return;
+        const dados = new FormData();
+        dados.append('usuario_id', localStorage.getItem('usuario_id'));
+        dados.append('id', id);
+        try {
+            const res  = await fetch(`${SERVER_URL}/excluir_despesa.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status === 'sucesso') {
+                await carregarFinanceiro();
+            } else {
+                alert('❌ ' + json.mensagem);
+            }
+        } catch(e) {
+            alert('Erro na conexão com o servidor.');
+        }
+    }
+    // ---- FIM FINANCEIRO ----
+
+    // ---- MENU MAIS ----
+    function abrirMais() {
+        document.getElementById('overlayMais').style.display = 'block';
+    }
+    function fecharMais() {
+        document.getElementById('overlayMais').style.display = 'none';
+    }
+    // ---- FIM MENU MAIS ----
 
     // ---- PRODUTOS E SERVIÇOS ----
     let cacheProdutos = [];
