@@ -97,6 +97,25 @@
         .mais-btn:hover, .mais-btn:active { background:#f0f7ff; }
         .mais-btn span { font-size:22px; }
 
+        /* Relatórios */
+        .rel-filtros { display:flex; gap:8px; align-items:flex-end; margin-bottom:15px; flex-wrap:wrap; }
+        .rel-filtros select { flex:1; min-width:90px; margin-top:0; }
+        .btn-filtrar { background:#075e54; color:white; border:none; padding:12px 16px; border-radius:5px; font-weight:bold; cursor:pointer; white-space:nowrap; }
+        .rel-sumario { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:15px; }
+        .rel-card { border-radius:10px; padding:12px; text-align:center; }
+        .rel-numero { font-size:19px; font-weight:bold; }
+        .rel-label { font-size:11px; color:#888; margin-top:2px; }
+        .rel-secao { background:#f9f9f9; border-radius:8px; padding:12px; margin-bottom:12px; }
+        .rel-secao-titulo { font-weight:bold; color:#075e54; font-size:13px; margin:0 0 10px; }
+        .orc-rel-item { border-bottom:1px solid #eee; padding:8px 0; }
+        .orc-rel-item:last-child { border-bottom:none; }
+        .orc-rel-header { display:flex; justify-content:space-between; align-items:center; }
+        .orc-rel-cliente { font-weight:bold; color:#333; font-size:13px; }
+        .orc-rel-valor { font-weight:bold; color:#25d366; font-size:13px; }
+        .orc-rel-meta { font-size:11px; color:#999; margin-top:2px; }
+        .orc-rel-itens { font-size:11px; color:#666; margin-top:3px; font-style:italic; }
+        .btn-rel-pdf { background:#007bff; color:white; border:none; padding:12px; width:100%; border-radius:5px; font-weight:bold; font-size:14px; cursor:pointer; margin-top:5px; }
+
         /* Estilo para esconder as telas */
         #telaPrincipal { display: none; }
     </style>
@@ -422,10 +441,62 @@
         <div id="listaDespesas" style="margin-top:10px;"></div>
     </div>
 
+    <!-- 10. TELA DE RELATÓRIOS -->
+    <div id="telaRelatorios" class="card" style="display:none;">
+        <h2>📈 Relatórios</h2>
+
+        <!-- Filtros -->
+        <div class="rel-filtros">
+            <select id="relMes">
+                <option value="1">Janeiro</option>
+                <option value="2">Fevereiro</option>
+                <option value="3">Março</option>
+                <option value="4">Abril</option>
+                <option value="5">Maio</option>
+                <option value="6">Junho</option>
+                <option value="7">Julho</option>
+                <option value="8">Agosto</option>
+                <option value="9">Setembro</option>
+                <option value="10">Outubro</option>
+                <option value="11">Novembro</option>
+                <option value="12">Dezembro</option>
+            </select>
+            <select id="relAno"></select>
+            <button class="btn-filtrar" onclick="carregarRelatorios()">🔍 Filtrar</button>
+        </div>
+
+        <!-- Sumário do período -->
+        <div class="rel-sumario">
+            <div class="rel-card" style="background:#f0fff4;">
+                <div class="rel-numero" style="color:#25d366;" id="relReceita">R$ 0</div>
+                <div class="rel-label">Receita do período</div>
+            </div>
+            <div class="rel-card" style="background:#fff5f5;">
+                <div class="rel-numero" style="color:#dc3545;" id="relDespesas">R$ 0</div>
+                <div class="rel-label">Despesas do período</div>
+            </div>
+            <div class="rel-card" style="background:#f8f0ff;">
+                <div class="rel-numero" style="color:#6f42c1;" id="relSaldo">R$ 0</div>
+                <div class="rel-label">Saldo</div>
+            </div>
+            <div class="rel-card" style="background:#f0f7ff;">
+                <div class="rel-numero" style="color:#075e54;" id="relQtdOrc">0</div>
+                <div class="rel-label">Orçamentos gerados</div>
+            </div>
+        </div>
+
+        <!-- Conteúdo dinâmico -->
+        <div id="relConteudo"></div>
+
+        <!-- Botão PDF -->
+        <button class="btn-rel-pdf" onclick="gerarRelatorioPDF()" id="btnRelPDF" style="display:none;">📄 Exportar Relatório em PDF</button>
+    </div>
+
     <!-- OVERLAY MAIS -->
     <div id="overlayMais" onclick="fecharMais()">
         <div class="mais-menu" onclick="event.stopPropagation()">
             <p style="margin:0 0 10px;font-size:12px;color:#999;text-align:center;">ACESSO RÁPIDO</p>
+            <button class="mais-btn" onclick="fecharMais();abrirRelatorios()"><span>📈</span> Relatórios</button>
             <button class="mais-btn" onclick="fecharMais();abrirEmpresa()"><span>🏢</span> Minha Empresa</button>
             <button class="mais-btn" onclick="fecharMais();abrirProdutos()"><span>📦</span> Catálogo de Produtos</button>
             <button class="mais-btn" onclick="fecharMais();verHistorico()"><span>📋</span> Histórico de Orçamentos</button>
@@ -461,11 +532,11 @@
 
     function alternarTelas(qual) {
         ['telaLogin','telaCadastro','telaPrincipal','telaHistorico','telaEmpresa','telaProdutos',
-         'telaDashboard','telaClientes','telaFinanceiro'].forEach(id => {
+         'telaDashboard','telaClientes','telaFinanceiro','telaRelatorios'].forEach(id => {
             document.getElementById(id).style.display = 'none';
         });
 
-        const telasLogadas = ['principal','empresa','historico','produtos','dashboard','clientes','financeiro'];
+        const telasLogadas = ['principal','empresa','historico','produtos','dashboard','clientes','financeiro','relatorios'];
         document.getElementById('bottomNav').style.display = telasLogadas.includes(qual) ? 'flex' : 'none';
 
         if(qual === 'login')      document.getElementById('telaLogin').style.display = 'block';
@@ -476,7 +547,8 @@
         if(qual === 'produtos')   document.getElementById('telaProdutos').style.display = 'block';
         if(qual === 'dashboard')  document.getElementById('telaDashboard').style.display = 'block';
         if(qual === 'clientes')   document.getElementById('telaClientes').style.display = 'block';
-        if(qual === 'financeiro') document.getElementById('telaFinanceiro').style.display = 'block';
+        if(qual === 'financeiro')  document.getElementById('telaFinanceiro').style.display = 'block';
+        if(qual === 'relatorios') document.getElementById('telaRelatorios').style.display = 'block';
 
         ['navInicio','navDashboard','navClientes','navFinanceiro','navMais'].forEach(id => {
             document.getElementById(id).classList.remove('ativo');
@@ -485,7 +557,7 @@
         if(qual === 'dashboard')  document.getElementById('navDashboard').classList.add('ativo');
         if(qual === 'clientes')   document.getElementById('navClientes').classList.add('ativo');
         if(qual === 'financeiro') document.getElementById('navFinanceiro').classList.add('ativo');
-        if(['empresa','produtos','historico'].includes(qual)) document.getElementById('navMais').classList.add('ativo');
+        if(['empresa','produtos','historico','relatorios'].includes(qual)) document.getElementById('navMais').classList.add('ativo');
     }
 
     async function realizarCadastro() {
@@ -790,6 +862,228 @@
             btn.textContent = 'SALVAR DADOS DA EMPRESA';
         }
     }
+
+    // ---- RELATÓRIOS ----
+    let dadosRelatorio = null;
+
+    function abrirRelatorios() {
+        alternarTelas('relatorios');
+
+        // Preenche seletor de anos (atual e 4 anteriores)
+        const anoAtual = new Date().getFullYear();
+        const selAno   = document.getElementById('relAno');
+        if (selAno.options.length === 0) {
+            for (let a = anoAtual; a >= anoAtual - 4; a--) {
+                const opt = document.createElement('option');
+                opt.value = a; opt.textContent = a;
+                selAno.appendChild(opt);
+            }
+        }
+
+        // Seleciona mês/ano atual por padrão
+        document.getElementById('relMes').value = new Date().getMonth() + 1;
+        document.getElementById('relAno').value = anoAtual;
+
+        carregarRelatorios();
+    }
+
+    async function carregarRelatorios() {
+        const usuario_id = localStorage.getItem('usuario_id');
+        if (!usuario_id) return;
+
+        const mes = document.getElementById('relMes').value;
+        const ano = document.getElementById('relAno').value;
+
+        // Limpa conteúdo anterior
+        document.getElementById('relConteudo').innerHTML = '<p style="text-align:center;color:#999;">Carregando...</p>';
+        document.getElementById('btnRelPDF').style.display = 'none';
+
+        const dados = new FormData();
+        dados.append('usuario_id', usuario_id);
+        dados.append('mes', mes);
+        dados.append('ano', ano);
+
+        try {
+            const res  = await fetch(`${SERVER_URL}/buscar_relatorios.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status !== 'sucesso') {
+                document.getElementById('relConteudo').innerHTML = '<p style="color:#dc3545;text-align:center;">Erro ao carregar relatório.</p>';
+                return;
+            }
+            dadosRelatorio = json;
+            renderizarRelatorio(json);
+        } catch(e) {
+            document.getElementById('relConteudo').innerHTML = '<p style="color:#dc3545;text-align:center;">Erro na conexão.</p>';
+        }
+    }
+
+    function renderizarRelatorio(d) {
+        const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const meses = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+        // Sumário
+        document.getElementById('relReceita').textContent  = fmt(d.receita_total);
+        document.getElementById('relDespesas').textContent = fmt(d.despesas_total);
+        document.getElementById('relQtdOrc').textContent   = d.total_orc;
+        const saldoEl = document.getElementById('relSaldo');
+        saldoEl.textContent = fmt(d.saldo);
+        saldoEl.style.color = d.saldo >= 0 ? '#6f42c1' : '#dc3545';
+
+        // Monta HTML das seções
+        let html = '';
+
+        // --- Top Clientes ---
+        html += `<div class="rel-secao">
+            <p class="rel-secao-titulo">🏆 Top Clientes — ${meses[d.mes]}/${d.ano}</p>`;
+        if (d.top_clientes.length === 0) {
+            html += '<p style="color:#999;font-size:12px;text-align:center;">Nenhum orçamento neste período.</p>';
+        } else {
+            const medalhas = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+            d.top_clientes.forEach((c, i) => {
+                html += `<div class="top-cliente">
+                    <span style="font-size:13px;">${medalhas[i]} ${c.cliente} <span style="color:#999;font-size:11px;">(${c.qtd}x)</span></span>
+                    <span style="font-weight:bold;color:#25d366;font-size:13px;">${fmt(c.total)}</span>
+                </div>`;
+            });
+        }
+        html += '</div>';
+
+        // --- Por tipo ---
+        if (d.por_tipo.length > 0) {
+            const tipoLabels = { whatsapp: '📱 WhatsApp', pdf: '📄 PDF' };
+            html += `<div class="rel-secao">
+                <p class="rel-secao-titulo">📊 Por canal de envio</p>`;
+            d.por_tipo.forEach(t => {
+                html += `<div class="top-cliente">
+                    <span style="font-size:13px;">${tipoLabels[t.tipo] || t.tipo} <span style="color:#999;font-size:11px;">(${t.qtd} orçamentos)</span></span>
+                    <span style="font-weight:bold;color:#34b7f1;font-size:13px;">${fmt(t.total)}</span>
+                </div>`;
+            });
+            html += '</div>';
+        }
+
+        // --- Lista de orçamentos ---
+        html += `<div class="rel-secao">
+            <p class="rel-secao-titulo">📋 Orçamentos de ${meses[d.mes]}/${d.ano}</p>`;
+        if (d.orcamentos.length === 0) {
+            html += '<p style="color:#999;font-size:12px;text-align:center;">Nenhum orçamento neste período.</p>';
+        } else {
+            d.orcamentos.forEach(o => {
+                const data   = new Date(o.criado_em).toLocaleDateString('pt-BR');
+                const itensStr = (o.itens || []).map(i => i.desc).filter(Boolean).join(', ');
+                const tipoIcon = o.tipo === 'whatsapp' ? '📱' : '📄';
+                html += `<div class="orc-rel-item">
+                    <div class="orc-rel-header">
+                        <span class="orc-rel-cliente">${tipoIcon} ${o.cliente}</span>
+                        <span class="orc-rel-valor">${fmt(o.total)}</span>
+                    </div>
+                    ${itensStr ? `<div class="orc-rel-itens">${itensStr}</div>` : ''}
+                    <div class="orc-rel-meta">${data}</div>
+                </div>`;
+            });
+        }
+        html += '</div>';
+
+        // --- Despesas ---
+        if (d.despesas_lista.length > 0) {
+            const catLabels = { materiais:'Materiais', servicos:'Serv. Terceiros', transporte:'Transporte', alimentacao:'Alimentação', outros:'Outros' };
+            html += `<div class="rel-secao">
+                <p class="rel-secao-titulo">💸 Despesas de ${meses[d.mes]}/${d.ano}</p>`;
+            d.despesas_lista.forEach(dp => {
+                html += `<div class="top-cliente">
+                    <span style="font-size:13px;">${dp.descricao} <span class="cat-badge">${catLabels[dp.categoria] || dp.categoria}</span></span>
+                    <span style="font-weight:bold;color:#dc3545;font-size:13px;">${fmt(dp.valor)}</span>
+                </div>`;
+            });
+            html += '</div>';
+        }
+
+        document.getElementById('relConteudo').innerHTML = html;
+        if (d.total_orc > 0 || d.despesas_lista.length > 0) {
+            document.getElementById('btnRelPDF').style.display = 'block';
+        }
+    }
+
+    function gerarRelatorioPDF() {
+        if (!dadosRelatorio) return;
+        const meses = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        const d   = dadosRelatorio;
+        const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const periodo = `${meses[d.mes]}/${d.ano}`;
+
+        const linhasOrc = d.orcamentos.map(o => {
+            const data = new Date(o.criado_em).toLocaleDateString('pt-BR');
+            const itensStr = (o.itens || []).map(i => i.desc).filter(Boolean).join(', ');
+            return `<tr>
+                <td style="padding:6px;border-bottom:1px solid #eee;">${o.cliente}</td>
+                <td style="padding:6px;border-bottom:1px solid #eee;font-size:11px;color:#666;">${itensStr}</td>
+                <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${fmt(o.total)}</td>
+                <td style="padding:6px;border-bottom:1px solid #eee;text-align:center;font-size:11px;">${data}</td>
+            </tr>`;
+        }).join('');
+
+        const el = document.createElement('div');
+        el.innerHTML = `
+        <div style="padding:30px;font-family:Arial;max-width:700px;margin:auto;">
+            <h1 style="color:#075e54;text-align:center;margin-bottom:4px;">ProDoc Orçamentos</h1>
+            <h2 style="color:#25d366;text-align:center;margin-top:0;">Relatório — ${periodo}</h2>
+            <hr style="border:0;border-top:2px solid #25d366;margin:15px 0;">
+
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                <tr>
+                    <td style="padding:10px;background:#f0fff4;border-radius:8px;text-align:center;width:25%;">
+                        <div style="font-size:20px;font-weight:bold;color:#25d366;">${fmt(d.receita_total)}</div>
+                        <div style="font-size:11px;color:#888;">Receita do período</div>
+                    </td>
+                    <td style="padding:10px;background:#fff5f5;border-radius:8px;text-align:center;width:25%;">
+                        <div style="font-size:20px;font-weight:bold;color:#dc3545;">${fmt(d.despesas_total)}</div>
+                        <div style="font-size:11px;color:#888;">Despesas</div>
+                    </td>
+                    <td style="padding:10px;background:#f8f0ff;border-radius:8px;text-align:center;width:25%;">
+                        <div style="font-size:20px;font-weight:bold;color:#6f42c1;">${fmt(d.saldo)}</div>
+                        <div style="font-size:11px;color:#888;">Saldo</div>
+                    </td>
+                    <td style="padding:10px;background:#f0f7ff;border-radius:8px;text-align:center;width:25%;">
+                        <div style="font-size:20px;font-weight:bold;color:#075e54;">${d.total_orc}</div>
+                        <div style="font-size:11px;color:#888;">Orçamentos</div>
+                    </td>
+                </tr>
+            </table>
+
+            ${d.orcamentos.length > 0 ? `
+            <h3 style="color:#075e54;">Orçamentos do período</h3>
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="background:#f0f7f0;">
+                        <th style="padding:8px;text-align:left;font-size:12px;">Cliente</th>
+                        <th style="padding:8px;text-align:left;font-size:12px;">Itens</th>
+                        <th style="padding:8px;text-align:right;font-size:12px;">Total</th>
+                        <th style="padding:8px;text-align:center;font-size:12px;">Data</th>
+                    </tr>
+                </thead>
+                <tbody>${linhasOrc}</tbody>
+            </table>` : ''}
+
+            ${d.top_clientes.length > 0 ? `
+            <h3 style="color:#075e54;margin-top:20px;">Top Clientes</h3>
+            <table style="width:100%;border-collapse:collapse;">
+                ${d.top_clientes.map((c, i) =>
+                    `<tr><td style="padding:6px;border-bottom:1px solid #eee;">${i+1}. ${c.cliente}</td>
+                     <td style="padding:6px;border-bottom:1px solid #eee;text-align:center;">${c.qtd} orç.</td>
+                     <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;font-weight:bold;color:#25d366;">${fmt(c.total)}</td></tr>`
+                ).join('')}
+            </table>` : ''}
+
+            <p style="text-align:right;font-size:10px;color:#ccc;margin-top:30px;">Gerado pelo ProDoc Orçamentos em ${new Date().toLocaleDateString('pt-BR')}</p>
+        </div>`;
+
+        html2pdf().from(el).set({
+            margin: 0.5,
+            filename: `Relatorio_ProDoc_${meses[d.mes]}_${d.ano}.pdf`,
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        }).save();
+    }
+    // ---- FIM RELATÓRIOS ----
 
     // ---- DASHBOARD ----
     async function abrirDashboard() {
