@@ -19,12 +19,12 @@ try {
     if ($id > 0) {
         $stmt = $conn->prepare("UPDATE clientes SET nome=?, whatsapp=?, email=?, cpf_cnpj=?, cidade=?, observacoes=? WHERE id=? AND usuario_id=?");
         $stmt->execute([$nome, $whatsapp, $email, $cpf_cnpj, $cidade, $observacoes, $id, $usuario_id]);
+        echo json_encode(['status' => 'sucesso', 'id' => $id]);
     } else {
         $stmt = $conn->prepare("INSERT INTO clientes (usuario_id, nome, whatsapp, email, cpf_cnpj, cidade, observacoes) VALUES (?,?,?,?,?,?,?)");
         $stmt->execute([$usuario_id, $nome, $whatsapp, $email, $cpf_cnpj, $cidade, $observacoes]);
+        echo json_encode(['status' => 'sucesso', 'id' => (int)$conn->lastInsertId()]);
     }
-
-    echo json_encode(['status' => 'sucesso']);
 } catch (Exception $e) {
     echo json_encode(['status' => 'erro', 'mensagem' => $e->getMessage()]);
 }
