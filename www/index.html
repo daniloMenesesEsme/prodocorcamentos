@@ -174,6 +174,19 @@
         #overlayMovimentacao { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; padding:20px; overflow-y:auto; }
         .mov-modal { background:white; border-radius:10px; padding:20px; max-width:420px; margin:0 auto; }
 
+        /* Autocomplete de cliente na tela principal */
+        .cli-ac-wrap { position:relative; margin-bottom:4px; }
+        .cli-ac-input { width:100%; padding:11px 38px 11px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box; }
+        .cli-ac-input:focus { outline:none; border-color:#25d366; box-shadow:0 0 0 2px rgba(37,211,102,0.15); }
+        .cli-ac-clear { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:16px; color:#aaa; cursor:pointer; display:none; padding:0; line-height:1; }
+        .cli-dropdown { position:absolute; top:calc(100% + 2px); left:0; right:0; background:white; border:1px solid #ddd; border-radius:8px; z-index:300; max-height:220px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,0.15); }
+        .cli-dropdown-item { padding:10px 14px; cursor:pointer; border-bottom:1px solid #f5f5f5; }
+        .cli-dropdown-item:last-child { border-bottom:none; }
+        .cli-dropdown-item:hover, .cli-dropdown-item:active { background:#f0f7f0; }
+        .cli-dropdown-item small { color:#888; font-size:11px; display:block; margin-top:1px; }
+        .cli-badge { display:none; align-items:center; justify-content:space-between; background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:8px 12px; font-size:13px; color:#2e7d32; margin-bottom:10px; }
+        .cli-badge-zap { color:#075e54; font-size:12px; }
+
         /* Estilo para esconder as telas */
         #telaPrincipal { display: none; }
     </style>
@@ -230,23 +243,23 @@
         <div class="card">
             <img src="logo.png" alt="Logo" class="logo-preview">
             <h2>ProDoc Orçamentos</h2>
-            <p id="infoUsuario" style="text-align: center; font-size: 12px; color: #666; margin: 0 0 10px;"></p>
-
-            <!-- SEÇÃO DA MEMÓRIA -->
-            <div style="background: #f9f9f9; padding: 15px; border-radius: 8px;">
-                <p style="margin-top: 0; font-size: 12px; color: #666;">📝 MEUS DADOS (Ficam salvos)</p>
-                <label>Nome da Empresa/Seu Nome:</label>
-                <input type="text" id="minhaEmpresa" placeholder="Ex: Danilo Meneses">
-                <label>Seu WhatsApp (com DDD):</label>
-                <input type="text" id="meuZap" placeholder="Ex: 85998115669">
-                <button id="btnSalvar" class="btn-salvar" onclick="salvarMeusDados()">SALVAR MEUS DADOS</button>
-            </div>
-
-            <hr>
+            <p id="infoUsuario" style="text-align: center; font-size: 12px; color: #666; margin: 0 0 14px;"></p>
 
             <!-- SEÇÃO DO CLIENTE -->
-            <label>Nome do Cliente:</label>
-            <input type="text" id="cliente" placeholder="Nome de quem vai receber">
+            <label style="font-weight:bold;color:#075e54;">Cliente:</label>
+            <div class="cli-ac-wrap" id="cliAcWrap">
+                <input type="text" id="clienteInput" class="cli-ac-input"
+                    placeholder="🔍 Buscar cliente cadastrado..."
+                    oninput="filtrarClienteAuto()"
+                    onfocus="mostrarDropdownClientes()"
+                    autocomplete="off">
+                <button class="cli-ac-clear" id="clienteInputClear" onclick="limparClienteAuto()">✕</button>
+                <div id="clienteDropdown" class="cli-dropdown" style="display:none;"></div>
+            </div>
+            <div class="cli-badge" id="clienteBadge">
+                <span id="clienteBadgeNome"></span>
+                <span class="cli-badge-zap" id="clienteBadgeZap"></span>
+            </div>
 
             <label style="margin-top: 15px;">Itens do Orçamento:</label>
             <div id="listaItens">
@@ -350,7 +363,7 @@
 
     <!-- MENU DE NAVEGAÇÃO INFERIOR -->
     <div id="bottomNav">
-        <button class="nav-btn ativo" id="navInicio" onclick="alternarTelas('principal')" style="padding:4px 10px;">
+        <button class="nav-btn ativo" id="navInicio" onclick="abrirPrincipal()" style="padding:4px 10px;">
             🏠<br><small>Início</small>
         </button>
         <button class="nav-btn" id="navDashboard" onclick="abrirDashboard()" style="padding:4px 10px;">
@@ -945,16 +958,11 @@
             document.getElementById('infoUsuario').textContent = `Olá, ${nome} | Licença válida até ${validade}`;
         }
 
-        // Se já tem no localStorage, usa direto (evita chamada desnecessária ao servidor)
-        if(localStorage.getItem('empresa')) {
-            document.getElementById('minhaEmpresa').value = localStorage.getItem('empresa');
-            document.getElementById('meuZap').value = localStorage.getItem('zap');
-            return;
-        }
-
-        // Se não tem (dispositivo novo ou app limpo), busca do servidor
+        // Busca dados da empresa para usar em orçamentos (cache em localStorage)
         const usuario_id = localStorage.getItem('usuario_id');
         if(!usuario_id) return;
+
+        if(localStorage.getItem('empresa')) return; // já cacheado
 
         try {
             const dados = new FormData();
@@ -965,62 +973,12 @@
             });
             const resultado = await resposta.json();
             if(resultado.status === 'sucesso') {
-                document.getElementById('minhaEmpresa').value = resultado.empresa || '';
-                document.getElementById('meuZap').value = resultado.zap || '';
                 localStorage.setItem('empresa', resultado.empresa || '');
                 localStorage.setItem('zap', resultado.zap || '');
             }
-        } catch(e) {
-            // Falha silenciosa — campos ficam vazios, usuário preenche manualmente
-        }
+        } catch(e) { /* Falha silenciosa */ }
     }
 
-    async function salvarMeusDados() {
-        const empresa = document.getElementById('minhaEmpresa').value;
-        const zap = document.getElementById('meuZap').value;
-        const usuario_id = localStorage.getItem('usuario_id'); // Pegamos o ID de quem está logado
-
-        if(!usuario_id || usuario_id === 'undefined' || usuario_id === 'null' || isNaN(Number(usuario_id))) {
-            alert("Ops! Sessão inválida. Por favor, saia e faça login novamente.");
-            return;
-        }
-
-        const btn = document.getElementById('btnSalvar');
-        btn.disabled = true;
-        btn.textContent = 'Salvando...';
-
-        // 1. Salva no navegador (LocalStorage) para uso imediato
-        localStorage.setItem('empresa', empresa);
-        localStorage.setItem('zap', zap);
-
-        // 2. Prepara os dados para enviar ao Banco de Dados via PHP
-        let dadosEnviados = new FormData();
-        dadosEnviados.append('usuario_id', usuario_id);
-        dadosEnviados.append('empresa', empresa);
-        dadosEnviados.append('zap', zap);
-
-        try {
-            const resposta = await fetch(`${SERVER_URL}/salvar_config.php`, {
-                method: 'POST',
-                body: dadosEnviados
-            });
-
-            const resultado = await resposta.json();
-
-            if(resultado.status === "sucesso") {
-                alert("✅ Sucesso! Dados salvos na sua conta do ProDoc.");
-            } else {
-                alert("❌ Erro ao salvar no servidor: " + resultado.mensagem);
-            }
-
-        } catch (erro) {
-            console.error(erro);
-            alert("Salvo apenas no celular. Não foi possível conectar ao servidor.");
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'SALVAR MEUS DADOS';
-        }
-    }
 
     async function abrirEmpresa() {
         alternarTelas('empresa');
@@ -1033,6 +991,7 @@
             const resultado = await resposta.json();
             if(resultado.status === 'sucesso') {
                 const e = resultado.empresa;
+                if (e.nome_fantasia) localStorage.setItem('empresa', e.nome_fantasia);
                 document.getElementById('empNome').value      = e.nome_fantasia || '';
                 document.getElementById('empCnpj').value      = e.cnpj_cpf      || '';
                 document.getElementById('empWhatsapp').value  = e.whatsapp       || '';
@@ -1128,6 +1087,8 @@
             const resposta = await fetch(`${SERVER_URL}/salvar_empresa.php`, { method: 'POST', body: dados });
             const resultado = await resposta.json();
             if(resultado.status === 'sucesso') {
+                // Atualiza cache usado em gerarOrcamento/gerarPDF
+                localStorage.setItem('empresa', nome);
                 alert('✅ Dados da empresa salvos com sucesso!');
             } else {
                 alert('❌ Erro: ' + resultado.mensagem);
@@ -1783,6 +1744,100 @@ CREATE TABLE movimentacoes_estoque (
     }
     // ---- FIM BUSCA ESTOQUE ----
 
+    // ---- TELA PRINCIPAL: AUTOCOMPLETE DE CLIENTES ----
+    let clienteSelecionado = null;
+
+    function abrirPrincipal() {
+        alternarTelas('principal');
+        limparClienteAuto();
+        // Pré-carrega clientes para autocomplete se cache vazio
+        if (cacheClientes.length === 0) {
+            const uid = localStorage.getItem('usuario_id');
+            if (uid) {
+                const d = new FormData(); d.append('usuario_id', uid);
+                fetch(`${SERVER_URL}/listar_clientes.php`, { method:'POST', body:d })
+                    .then(r => r.json())
+                    .then(j => { if (j.status === 'sucesso') cacheClientes = j.clientes; })
+                    .catch(() => {});
+            }
+        }
+    }
+
+    function mostrarDropdownClientes() {
+        if (clienteSelecionado) return; // já selecionado, não reabre
+        filtrarClienteAuto();
+    }
+
+    function filtrarClienteAuto() {
+        const busca = document.getElementById('clienteInput').value.toLowerCase().trim();
+        document.getElementById('clienteInputClear').style.display = busca ? 'block' : 'none';
+
+        // Se digitou diferente do cliente selecionado, deseleciona
+        if (clienteSelecionado && document.getElementById('clienteInput').value !== clienteSelecionado.nome) {
+            clienteSelecionado = null;
+            document.getElementById('clienteBadge').style.display = 'none';
+        }
+
+        const dropdown = document.getElementById('clienteDropdown');
+        if (cacheClientes.length === 0) { dropdown.style.display = 'none'; return; }
+
+        const filtrados = busca
+            ? cacheClientes.filter(c => `${c.nome} ${c.whatsapp||''} ${c.cidade||''}`.toLowerCase().includes(busca))
+            : cacheClientes.slice(0, 20); // sem busca: mostra os 20 primeiros
+
+        if (filtrados.length === 0) {
+            dropdown.innerHTML = '<div class="cli-dropdown-item" style="color:#999;cursor:default;">Nenhum cliente encontrado</div>';
+            dropdown.style.display = 'block';
+            return;
+        }
+
+        dropdown.innerHTML = filtrados.map((c, i) => {
+            const idx = cacheClientes.indexOf(c);
+            const detalhe = [c.whatsapp, c.cidade].filter(Boolean).join(' · ');
+            return `<div class="cli-dropdown-item" onclick="selecionarClienteAuto(${idx})">
+                <strong>${c.nome}</strong>
+                ${detalhe ? `<small>${detalhe}</small>` : ''}
+            </div>`;
+        }).join('');
+        dropdown.style.display = 'block';
+    }
+
+    function selecionarClienteAuto(idx) {
+        const c = cacheClientes[idx];
+        if (!c) return;
+        clienteSelecionado = c;
+        document.getElementById('clienteInput').value = c.nome;
+        document.getElementById('clienteInputClear').style.display = 'block';
+        document.getElementById('clienteDropdown').style.display = 'none';
+
+        const badge = document.getElementById('clienteBadge');
+        document.getElementById('clienteBadgeNome').textContent = '✅ ' + c.nome;
+        document.getElementById('clienteBadgeZap').textContent = c.whatsapp ? '📱 ' + c.whatsapp : 'Sem WhatsApp cadastrado';
+        badge.style.display = 'flex';
+    }
+
+    function limparClienteAuto() {
+        clienteSelecionado = null;
+        const inp = document.getElementById('clienteInput');
+        if (inp) inp.value = '';
+        const clr = document.getElementById('clienteInputClear');
+        if (clr) clr.style.display = 'none';
+        const dd = document.getElementById('clienteDropdown');
+        if (dd) dd.style.display = 'none';
+        const badge = document.getElementById('clienteBadge');
+        if (badge) badge.style.display = 'none';
+    }
+
+    // Fecha dropdown ao clicar fora
+    document.addEventListener('click', function(e) {
+        const wrap = document.getElementById('cliAcWrap');
+        if (wrap && !wrap.contains(e.target)) {
+            const dd = document.getElementById('clienteDropdown');
+            if (dd) dd.style.display = 'none';
+        }
+    });
+    // ---- FIM TELA PRINCIPAL ----
+
     // ---- DASHBOARD ----
     async function abrirDashboard() {
         alternarTelas('dashboard');
@@ -2305,12 +2360,12 @@ CREATE TABLE movimentacoes_estoque (
     }
 
     function gerarOrcamento() {
-        const empresa = document.getElementById('minhaEmpresa').value;
-        const cliente = document.getElementById('cliente').value;
+        const empresa = localStorage.getItem('empresa') || localStorage.getItem('usuario_nome') || 'Empresa';
+        const cliente = document.getElementById('clienteInput').value.trim();
         const itens   = obterItens();
         const total   = calcularTotal();
 
-        if(!cliente) { alert('Preencha o nome do cliente.'); return; }
+        if(!cliente) { alert('Selecione ou informe o nome do cliente.'); return; }
         if(itens.length === 0) { alert('Adicione pelo menos um item com descrição.'); return; }
 
         const dias = parseInt(document.getElementById('diasValidade').value) || 7;
@@ -2335,10 +2390,16 @@ CREATE TABLE movimentacoes_estoque (
                       `━━━━━━━━━━━━━━━━━━%0A` +
                       `📌 *Para agendar, responda com "APROVADO"!*`;
 
-        const foneCliente = prompt("WhatsApp do Cliente (DDD + Número):", "85");
-        if(foneCliente) {
-            window.open(`https://wa.me/55${foneCliente}?text=${texto}`);
+        const zapCadastrado = clienteSelecionado?.whatsapp?.replace(/\D/g,'');
+        if (zapCadastrado && zapCadastrado.length >= 10) {
+            window.open(`https://wa.me/55${zapCadastrado}?text=${texto}`);
             salvarNoHistorico(cliente, itens, total, 'whatsapp');
+        } else {
+            const foneCliente = prompt("WhatsApp do Cliente (DDD + Número):", "85");
+            if(foneCliente) {
+                window.open(`https://wa.me/55${foneCliente}?text=${texto}`);
+                salvarNoHistorico(cliente, itens, total, 'whatsapp');
+            }
         }
     }
 
@@ -2350,12 +2411,12 @@ CREATE TABLE movimentacoes_estoque (
             return;
         }
 
-        const empresa = document.getElementById('minhaEmpresa').value;
-        const cliente = document.getElementById('cliente').value;
+        const empresa = localStorage.getItem('empresa') || localStorage.getItem('usuario_nome') || 'Empresa';
+        const cliente = document.getElementById('clienteInput').value.trim();
         const itens   = obterItens();
         const total   = calcularTotal();
 
-        if(!cliente) { alert('Preencha o nome do cliente.'); return; }
+        if(!cliente) { alert('Selecione ou informe o nome do cliente.'); return; }
         if(itens.length === 0) { alert('Adicione pelo menos um item com descrição.'); return; }
 
         const dias = parseInt(document.getElementById('diasValidade').value) || 7;
