@@ -142,6 +142,17 @@
         .alerta-banner { background:#f8d7da; border:1px solid #f5c6cb; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px; }
         .alerta-banner-txt { font-size:13px; color:#721c24; font-weight:bold; }
 
+        /* Visualização de orçamento */
+        #overlayVerOrc { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; padding:15px; overflow-y:auto; }
+        .ver-orc-modal { background:white; border-radius:10px; padding:20px; max-width:500px; margin:0 auto; }
+        .ver-orc-linha { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid #f0f0f0; font-size:14px; }
+        .ver-orc-linha:last-child { border-bottom:none; }
+        .ver-orc-desc { color:#333; flex:1; }
+        .ver-orc-val  { font-weight:bold; color:#075e54; white-space:nowrap; margin-left:10px; }
+        .ver-orc-total-linha { display:flex; justify-content:space-between; background:#f0f7f0; padding:10px 12px; border-radius:6px; margin-top:10px; font-weight:bold; font-size:15px; color:#075e54; }
+        .btn-reenviar { background:#25d366; color:white; border:none; padding:13px; width:100%; border-radius:5px; font-weight:bold; font-size:15px; cursor:pointer; margin-top:10px; }
+        .revisao-badge { background:#fff3cd; border:1px solid #ffc107; border-radius:6px; padding:8px 12px; font-size:12px; color:#856404; margin:10px 0; display:flex; align-items:flex-start; gap:8px; }
+
         /* Edição de orçamento */
         .hi-editado { font-size:10px; color:#856404; background:#fff3cd; border-radius:4px; padding:2px 6px; display:inline-block; margin-top:3px; }
         #overlayEditarOrc { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; padding:15px; overflow-y:auto; }
@@ -576,6 +587,43 @@
         <!-- Aba movimentações -->
         <div id="painelMovimentacoes" style="display:none;">
             <div id="listaMovimentacoes"></div>
+        </div>
+    </div>
+
+    <!-- OVERLAY VISUALIZAR ORÇAMENTO -->
+    <div id="overlayVerOrc">
+        <div class="ver-orc-modal">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h3 style="color:#075e54;margin:0;">📄 Orçamento</h3>
+                <button onclick="fecharVerOrc()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa;">✕</button>
+            </div>
+
+            <div style="font-size:12px;color:#888;margin-bottom:4px;">Cliente:</div>
+            <div id="verOrcCliente" style="font-size:16px;font-weight:bold;color:#333;margin-bottom:12px;"></div>
+
+            <div style="font-size:12px;color:#888;margin-bottom:6px;">Itens:</div>
+            <div id="verOrcItens"></div>
+
+            <div class="ver-orc-total-linha">
+                <span>TOTAL</span>
+                <span id="verOrcTotal"></span>
+            </div>
+
+            <div style="display:flex;gap:10px;font-size:11px;color:#999;margin-top:8px;">
+                <span id="verOrcData"></span>
+                <span id="verOrcEditadoInfo"></span>
+            </div>
+
+            <!-- Badge de revisão (visível só quando foi editado) -->
+            <div id="verOrcRevisaoBadge" class="revisao-badge" style="display:none;">
+                <span style="font-size:18px;">⚠️</span>
+                <span>Este orçamento foi <strong>revisado</strong>. Ao reenviar, o cliente receberá a versão atualizada e deverá confirmar com <strong>"APROVADO"</strong>.</span>
+            </div>
+
+            <button class="btn-reenviar" id="btnReenviarOrc" onclick="reenviarOrcamento()">
+                📤 Reenviar via WhatsApp
+            </button>
+            <button onclick="fecharVerOrc()" class="btn-voltar" style="width:100%;margin-top:8px;text-align:center;">Fechar</button>
         </div>
     </div>
 
@@ -2185,9 +2233,17 @@ CREATE TABLE movimentacoes_estoque (
             const editado  = h.editado_em
                 ? `<span class="hi-editado">✏️ Editado em ${h.editado_em} por ${h.editado_por}</span>`
                 : '';
-            const btnEditar = h.id
-                ? `<button onclick="abrirEditarOrc(${h.id})" style="background:#ffc107;color:#333;border:none;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:bold;">✏️ Editar</button>`
-                : '';
+            const btns = h.id ? `
+                <div style="display:flex;gap:6px;margin-top:8px;">
+                    <button onclick="abrirVerOrc(${h.id})"
+                        style="flex:1;background:#17a2b8;color:white;border:none;border-radius:5px;padding:6px;cursor:pointer;font-size:12px;font-weight:bold;">
+                        👁️ Visualizar
+                    </button>
+                    <button onclick="abrirEditarOrc(${h.id})"
+                        style="flex:1;background:#ffc107;color:#333;border:none;border-radius:5px;padding:6px;cursor:pointer;font-size:12px;font-weight:bold;">
+                        ✏️ Editar
+                    </button>
+                </div>` : '';
             return `
                 <div class="historico-item">
                     <div class="hi-header">
@@ -2198,17 +2254,107 @@ CREATE TABLE movimentacoes_estoque (
                     ${editado}
                     <div class="hi-header" style="margin-top:6px;">
                         <span class="hi-total">R$ ${totalStr}</span>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span class="hi-tipo">${tipoIcon}</span>
-                            ${btnEditar}
-                        </div>
+                        <span class="hi-tipo">${tipoIcon}</span>
                     </div>
+                    ${btns}
                 </div>`;
         }).join('');
     }
 
-    // ---- EDIÇÃO DE ORÇAMENTO ----
+    // ---- VISUALIZAR / REENVIAR ORÇAMENTO ----
     let cacheHistorico = [];
+    let orcamentoAtualVer = null;
+
+    function abrirVerOrc(id) {
+        const h = cacheHistorico.find(x => x.id == id);
+        if (!h) return;
+        orcamentoAtualVer = h;
+
+        const itens    = Array.isArray(h.itens) ? h.itens : JSON.parse(h.itens || '[]');
+        const totalStr = Number(h.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const fmt      = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+        document.getElementById('verOrcCliente').textContent = h.cliente;
+        document.getElementById('verOrcTotal').textContent   = 'R$ ' + totalStr;
+        document.getElementById('verOrcData').textContent    = '📅 Gerado em: ' + (h.criado_em || h.data || '');
+
+        // Itens
+        document.getElementById('verOrcItens').innerHTML = itens.map(i =>
+            `<div class="ver-orc-linha">
+                <span class="ver-orc-desc">${i.desc}</span>
+                <span class="ver-orc-val">${fmt(i.val)}</span>
+            </div>`
+        ).join('');
+
+        // Info de edição
+        const editEl = document.getElementById('verOrcEditadoInfo');
+        const badgeEl = document.getElementById('verOrcRevisaoBadge');
+        if (h.editado_em) {
+            editEl.textContent  = '✏️ Revisado em: ' + h.editado_em + ' por ' + h.editado_por;
+            editEl.style.color  = '#856404';
+            badgeEl.style.display = 'flex';
+        } else {
+            editEl.textContent    = '';
+            badgeEl.style.display = 'none';
+        }
+
+        document.getElementById('overlayVerOrc').style.display = 'block';
+    }
+
+    function fecharVerOrc() {
+        document.getElementById('overlayVerOrc').style.display = 'none';
+        orcamentoAtualVer = null;
+    }
+
+    function reenviarOrcamento() {
+        const h = orcamentoAtualVer;
+        if (!h) return;
+
+        const empresa  = localStorage.getItem('empresa') || 'Prestador';
+        const itens    = Array.isArray(h.itens) ? h.itens : JSON.parse(h.itens || '[]');
+        const totalStr = Number(h.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const foiEditado = !!h.editado_em;
+
+        const linhasItens = itens.map(i =>
+            `• ${i.desc}: R$ ${Number(i.val).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+        ).join('%0A');
+
+        let texto;
+        if (foiEditado) {
+            texto = `*📄 PRODOC ORÇAMENTOS — REVISÃO*%0A` +
+                    `*⚠️ Orçamento Atualizado* 🔄%0A` +
+                    `━━━━━━━━━━━━━━━━━━%0A` +
+                    `👤 *CLIENTE:* ${h.cliente}%0A` +
+                    `🏢 *PRESTADOR:* ${empresa}%0A` +
+                    `━━━━━━━━━━━━━━━━━━%0A%0A` +
+                    `🛠️ *ITENS ATUALIZADOS:*%0A${linhasItens}%0A%0A` +
+                    `💰 *VALOR TOTAL:* R$ ${totalStr}%0A` +
+                    `🔄 *Última revisão:* ${h.editado_em}%0A` +
+                    `━━━━━━━━━━━━━━━━━━%0A` +
+                    `✅ *Para confirmar esta revisão, responda com "APROVADO".*%0A` +
+                    `📌 _Sua confirmação servirá como registro de aceite da proposta revisada._`;
+        } else {
+            texto = `*📄 PRODOC ORÇAMENTOS*%0A` +
+                    `*Serviço Profissional Confirmado* ✅%0A` +
+                    `━━━━━━━━━━━━━━━━━━%0A` +
+                    `👤 *CLIENTE:* ${h.cliente}%0A` +
+                    `🏢 *PRESTADOR:* ${empresa}%0A` +
+                    `━━━━━━━━━━━━━━━━━━%0A%0A` +
+                    `🛠️ *ITENS DO ORÇAMENTO:*%0A${linhasItens}%0A%0A` +
+                    `💰 *VALOR TOTAL:* R$ ${totalStr}%0A` +
+                    `━━━━━━━━━━━━━━━━━━%0A` +
+                    `📌 *Para agendar, responda com "APROVADO"!*`;
+        }
+
+        const fone = prompt('WhatsApp do Cliente (DDD + Número):', '85');
+        if (fone) {
+            window.open(`https://wa.me/55${fone}?text=${texto}`);
+            fecharVerOrc();
+        }
+    }
+    // ---- FIM VISUALIZAR / REENVIAR ORÇAMENTO ----
+
+    // ---- EDIÇÃO DE ORÇAMENTO ----
 
     function abrirEditarOrc(id) {
         const h = cacheHistorico.find(x => x.id == id);
