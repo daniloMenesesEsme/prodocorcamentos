@@ -401,8 +401,15 @@
             </div>
         </div>
 
-        <button onclick="mostrarFormProduto()" class="btn-salvar" style="background:#25d366;padding:12px;margin-bottom:5px;">+ NOVO PRODUTO/SERVIÇO</button>
-        <div id="listaProdutos" style="margin-top:10px;"></div>
+        <button onclick="mostrarFormProduto()" class="btn-salvar" style="background:#25d366;padding:12px;margin-bottom:10px;">+ NOVO PRODUTO/SERVIÇO</button>
+        <div class="hist-busca-wrap">
+            <input type="text" id="prodBusca" class="hist-busca-input"
+                placeholder="🔍 Buscar por nome, descrição ou categoria..."
+                oninput="filtrarProdutos()">
+            <button class="hist-busca-clear" id="prodBuscaClear" onclick="limparBuscaProd()">✕</button>
+        </div>
+        <div id="prodResumo" class="hist-resumo"></div>
+        <div id="listaProdutos" style="margin-top:6px;"></div>
     </div>
 
     <!-- 7. TELA DE DASHBOARD -->
@@ -478,8 +485,15 @@
             </div>
         </div>
 
-        <button onclick="mostrarFormCliente()" class="btn-salvar" style="background:#6f42c1;padding:12px;margin-bottom:5px;">+ NOVO CLIENTE</button>
-        <div id="listaClientes" style="margin-top:10px;"></div>
+        <button onclick="mostrarFormCliente()" class="btn-salvar" style="background:#6f42c1;padding:12px;margin-bottom:10px;">+ NOVO CLIENTE</button>
+        <div class="hist-busca-wrap">
+            <input type="text" id="cliBusca" class="hist-busca-input"
+                placeholder="🔍 Buscar por nome, WhatsApp, cidade..."
+                oninput="filtrarClientes()">
+            <button class="hist-busca-clear" id="cliBuscaClear" onclick="limparBuscaCli()">✕</button>
+        </div>
+        <div id="cliResumo" class="hist-resumo"></div>
+        <div id="listaClientes" style="margin-top:6px;"></div>
     </div>
 
     <!-- 9. TELA FINANCEIRO -->
@@ -523,9 +537,23 @@
             </div>
         </div>
 
-        <button onclick="mostrarFormDespesa()" class="btn-salvar" style="background:#dc3545;padding:12px;margin-bottom:5px;">+ LANÇAR DESPESA</button>
-
-        <div id="listaDespesas" style="margin-top:10px;"></div>
+        <button onclick="mostrarFormDespesa()" class="btn-salvar" style="background:#dc3545;padding:12px;margin-bottom:10px;">+ LANÇAR DESPESA</button>
+        <div class="hist-busca-wrap">
+            <input type="text" id="despBusca" class="hist-busca-input"
+                placeholder="🔍 Buscar por descrição ou categoria..."
+                oninput="filtrarDespesas()">
+            <button class="hist-busca-clear" id="despBuscaClear" onclick="limparBuscaDesp()">✕</button>
+        </div>
+        <div class="hist-filtros" style="margin-bottom:8px;">
+            <button class="hist-filtro-btn ativo" id="dfTodas"      onclick="setFiltroDesp('todas')">Todas</button>
+            <button class="hist-filtro-btn"        id="dfMateriais"  onclick="setFiltroDesp('materiais')">Materiais</button>
+            <button class="hist-filtro-btn"        id="dfServicos"   onclick="setFiltroDesp('servicos')">Serviços</button>
+            <button class="hist-filtro-btn"        id="dfTransporte" onclick="setFiltroDesp('transporte')">Transporte</button>
+            <button class="hist-filtro-btn"        id="dfAlimentacao" onclick="setFiltroDesp('alimentacao')">Alimentação</button>
+            <button class="hist-filtro-btn"        id="dfOutros"     onclick="setFiltroDesp('outros')">Outros</button>
+        </div>
+        <div id="despResumo" class="hist-resumo"></div>
+        <div id="listaDespesas" style="margin-top:6px;"></div>
     </div>
 
     <!-- 10. TELA DE RELATÓRIOS -->
@@ -622,6 +650,19 @@
 
         <!-- Aba posição atual -->
         <div id="painelEstoque">
+            <div class="hist-busca-wrap">
+                <input type="text" id="estBusca" class="hist-busca-input"
+                    placeholder="🔍 Buscar produto..."
+                    oninput="filtrarEstoque()">
+                <button class="hist-busca-clear" id="estBuscaClear" onclick="limparBuscaEst()">✕</button>
+            </div>
+            <div class="hist-filtros" style="margin-bottom:8px;">
+                <button class="hist-filtro-btn ativo" id="efTodos"  onclick="setFiltroEst('todos')">Todos</button>
+                <button class="hist-filtro-btn"        id="efOk"    onclick="setFiltroEst('ok')">✅ OK</button>
+                <button class="hist-filtro-btn"        id="efBaixo" onclick="setFiltroEst('baixo')">🔴 Baixo</button>
+                <button class="hist-filtro-btn"        id="efZerado" onclick="setFiltroEst('zerado')">⚠️ Zerado</button>
+            </div>
+            <div id="estResumo" class="hist-resumo"></div>
             <div id="listaPosicaoEstoque"></div>
         </div>
 
@@ -1105,6 +1146,15 @@
     async function abrirEstoque() {
         alternarTelas('estoque');
         trocarAbaEstoque('estoque');
+        document.getElementById('estBusca').value = '';
+        document.getElementById('estBuscaClear').style.display = 'none';
+        filtroEstAtivo = 'todos';
+        ['efTodos','efOk','efBaixo','efZerado'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('ativo');
+        });
+        const efTodos = document.getElementById('efTodos');
+        if (efTodos) efTodos.classList.add('ativo');
         await carregarEstoque();
     }
 
@@ -1151,7 +1201,7 @@ CREATE TABLE movimentacoes_estoque (
                 return;
             }
             cacheEstoque = json.produtos;
-            renderizarPosicaoEstoque(json.produtos, json.qtd_alertas);
+            filtrarEstoque();
             renderizarMovimentacoes(json.movimentacoes);
         } catch(e) {
             document.getElementById('listaPosicaoEstoque').innerHTML = '<p style="color:#999;text-align:center;">Erro ao carregar estoque.</p>';
@@ -1593,6 +1643,146 @@ CREATE TABLE movimentacoes_estoque (
     }
     // ---- FIM RELATÓRIOS ----
 
+    // ---- BUSCA: CATÁLOGO DE PRODUTOS ----
+    function filtrarProdutos() {
+        const busca = document.getElementById('prodBusca').value.toLowerCase().trim();
+        document.getElementById('prodBuscaClear').style.display = busca ? 'block' : 'none';
+        const resultado = cacheProdutos.filter(p =>
+            `${p.nome} ${p.descricao || ''} ${p.categoria} ${p.unidade}`.toLowerCase().includes(busca)
+        );
+        document.getElementById('prodResumo').textContent =
+            resultado.length === cacheProdutos.length
+                ? `${resultado.length} item${resultado.length !== 1 ? 'ns' : ''} no catálogo`
+                : `${resultado.length} de ${cacheProdutos.length} itens`;
+        renderizarProdutos(resultado);
+    }
+    function limparBuscaProd() {
+        document.getElementById('prodBusca').value = '';
+        document.getElementById('prodBuscaClear').style.display = 'none';
+        filtrarProdutos();
+    }
+    // ---- FIM BUSCA CATÁLOGO ----
+
+    // ---- BUSCA: CLIENTES ----
+    function filtrarClientes() {
+        const busca = document.getElementById('cliBusca').value.toLowerCase().trim();
+        document.getElementById('cliBuscaClear').style.display = busca ? 'block' : 'none';
+        const resultado = cacheClientes.filter(c =>
+            `${c.nome} ${c.whatsapp || ''} ${c.email || ''} ${c.cidade || ''} ${c.cpf_cnpj || ''} ${c.observacoes || ''}`.toLowerCase().includes(busca)
+        );
+        document.getElementById('cliResumo').textContent =
+            resultado.length === cacheClientes.length
+                ? `${resultado.length} cliente${resultado.length !== 1 ? 's' : ''} cadastrado${resultado.length !== 1 ? 's' : ''}`
+                : `${resultado.length} de ${cacheClientes.length} clientes`;
+        renderizarClientes(resultado);
+    }
+    function limparBuscaCli() {
+        document.getElementById('cliBusca').value = '';
+        document.getElementById('cliBuscaClear').style.display = 'none';
+        filtrarClientes();
+    }
+    // ---- FIM BUSCA CLIENTES ----
+
+    // ---- BUSCA: FINANCEIRO ----
+    let cacheDespesas    = [];
+    let filtroDespAtivo  = 'todas';
+
+    function setFiltroDesp(filtro) {
+        filtroDespAtivo = filtro;
+        ['dfTodas','dfMateriais','dfServicos','dfTransporte','dfAlimentacao','dfOutros'].forEach(id =>
+            document.getElementById(id).classList.remove('ativo'));
+        const mapa = { todas:'dfTodas', materiais:'dfMateriais', servicos:'dfServicos', transporte:'dfTransporte', alimentacao:'dfAlimentacao', outros:'dfOutros' };
+        document.getElementById(mapa[filtro]).classList.add('ativo');
+        filtrarDespesas();
+    }
+
+    function filtrarDespesas() {
+        const busca = document.getElementById('despBusca').value.toLowerCase().trim();
+        document.getElementById('despBuscaClear').style.display = busca ? 'block' : 'none';
+        const resultado = cacheDespesas.filter(d => {
+            if (filtroDespAtivo !== 'todas' && d.categoria !== filtroDespAtivo) return false;
+            if (busca && !`${d.descricao} ${d.categoria}`.toLowerCase().includes(busca)) return false;
+            return true;
+        });
+        const totalFiltrado = resultado.reduce((s, d) => s + Number(d.valor), 0);
+        const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        document.getElementById('despResumo').textContent =
+            resultado.length === cacheDespesas.length
+                ? `${resultado.length} lançamento${resultado.length !== 1 ? 's' : ''} · Total: ${fmt(totalFiltrado)}`
+                : `${resultado.length} de ${cacheDespesas.length} · Total: ${fmt(totalFiltrado)}`;
+        renderizarDespesas(resultado);
+    }
+
+    function limparBuscaDesp() {
+        document.getElementById('despBusca').value = '';
+        document.getElementById('despBuscaClear').style.display = 'none';
+        filtrarDespesas();
+    }
+
+    function renderizarDespesas(despesas) {
+        const lista = document.getElementById('listaDespesas');
+        if (despesas.length === 0) {
+            const msg = cacheDespesas.length === 0
+                ? 'Nenhuma despesa lançada.<br>Clique em "+ LANÇAR DESPESA" para começar.'
+                : 'Nenhum resultado encontrado.';
+            lista.innerHTML = `<p style="color:#999;text-align:center;margin-top:15px;">${msg}</p>`;
+            return;
+        }
+        const catLabels = { materiais:'Materiais', servicos:'Serv. Terceiros', transporte:'Transporte', alimentacao:'Alimentação', outros:'Outros' };
+        lista.innerHTML = despesas.map(d => {
+            const dataFmt = new Date(d.data_despesa + 'T12:00:00').toLocaleDateString('pt-BR');
+            return `<div class="despesa-item">
+                <div class="despesa-info">
+                    <div class="despesa-nome">${d.descricao}</div>
+                    <div class="despesa-detalhe">${dataFmt} · <span class="cat-badge">${catLabels[d.categoria] || d.categoria}</span></div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                    <span style="font-weight:bold;color:#dc3545;">R$ ${Number(d.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+                    <button class="btn-excluir" style="font-size:11px;padding:3px 8px;" onclick="confirmarExcluirDespesa(${d.id})">🗑️</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+    // ---- FIM BUSCA FINANCEIRO ----
+
+    // ---- BUSCA: ESTOQUE ----
+    let filtroEstAtivo = 'todos';
+
+    function setFiltroEst(filtro) {
+        filtroEstAtivo = filtro;
+        ['efTodos','efOk','efBaixo','efZerado'].forEach(id =>
+            document.getElementById(id).classList.remove('ativo'));
+        const mapa = { todos:'efTodos', ok:'efOk', baixo:'efBaixo', zerado:'efZerado' };
+        document.getElementById(mapa[filtro]).classList.add('ativo');
+        filtrarEstoque();
+    }
+
+    function filtrarEstoque() {
+        const busca = document.getElementById('estBusca').value.toLowerCase().trim();
+        document.getElementById('estBuscaClear').style.display = busca ? 'block' : 'none';
+        const resultado = cacheEstoque.filter(p => {
+            if (busca && !p.nome.toLowerCase().includes(busca)) return false;
+            const estAtual = parseFloat(p.estoque_atual);
+            const estMin   = parseFloat(p.estoque_minimo);
+            if (filtroEstAtivo === 'zerado') return estAtual <= 0;
+            if (filtroEstAtivo === 'baixo')  return estMin > 0 && estAtual > 0 && estAtual <= estMin;
+            if (filtroEstAtivo === 'ok')     return estAtual > 0 && !(estMin > 0 && estAtual <= estMin);
+            return true;
+        });
+        document.getElementById('estResumo').textContent =
+            resultado.length === cacheEstoque.length
+                ? `${resultado.length} produto${resultado.length !== 1 ? 's' : ''} no estoque`
+                : `${resultado.length} de ${cacheEstoque.length} produtos`;
+        renderizarPosicaoEstoque(resultado, resultado.filter(p => p.alerta == 1).length);
+    }
+
+    function limparBuscaEst() {
+        document.getElementById('estBusca').value = '';
+        document.getElementById('estBuscaClear').style.display = 'none';
+        filtrarEstoque();
+    }
+    // ---- FIM BUSCA ESTOQUE ----
+
     // ---- DASHBOARD ----
     async function abrirDashboard() {
         alternarTelas('dashboard');
@@ -1661,6 +1851,8 @@ CREATE TABLE movimentacoes_estoque (
     async function abrirClientes() {
         alternarTelas('clientes');
         fecharFormCliente();
+        document.getElementById('cliBusca').value = '';
+        document.getElementById('cliBuscaClear').style.display = 'none';
         await carregarClientes();
     }
 
@@ -1674,7 +1866,7 @@ CREATE TABLE movimentacoes_estoque (
             const json = await res.json();
             if (json.status === 'sucesso') {
                 cacheClientes = json.clientes;
-                renderizarClientes(json.clientes);
+                filtrarClientes();
             }
         } catch(e) {
             document.getElementById('listaClientes').innerHTML = '<p style="color:#999;text-align:center;">Erro ao carregar clientes.</p>';
@@ -1780,8 +1972,16 @@ CREATE TABLE movimentacoes_estoque (
     async function abrirFinanceiro() {
         alternarTelas('financeiro');
         fecharFormDespesa();
-        // Preenche data de hoje no formulário
         document.getElementById('despData').value = new Date().toISOString().split('T')[0];
+        document.getElementById('despBusca').value = '';
+        document.getElementById('despBuscaClear').style.display = 'none';
+        filtroDespAtivo = 'todas';
+        ['dfTodas','dfMateriais','dfServicos','dfTransporte','dfAlimentacao','dfOutros'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('ativo');
+        });
+        const dfTodas = document.getElementById('dfTodas');
+        if (dfTodas) dfTodas.classList.add('ativo');
         await carregarFinanceiro();
     }
 
@@ -1802,26 +2002,8 @@ CREATE TABLE movimentacoes_estoque (
             saldoEl.textContent = fmt(json.saldo_mes);
             saldoEl.style.color = json.saldo_mes >= 0 ? '#6f42c1' : '#dc3545';
 
-            const lista = document.getElementById('listaDespesas');
-            if (json.despesas.length === 0) {
-                lista.innerHTML = '<p style="color:#999;text-align:center;margin-top:20px;">Nenhuma despesa lançada.<br>Clique em "+ LANÇAR DESPESA" para começar.</p>';
-            } else {
-                const catLabels = { materiais:'Materiais', servicos:'Serv. Terceiros', transporte:'Transporte', alimentacao:'Alimentação', outros:'Outros' };
-                lista.innerHTML = '<p style="font-weight:bold;color:#075e54;margin:5px 0 8px;font-size:13px;">📋 Despesas recentes</p>' +
-                    json.despesas.map(d => {
-                        const dataFmt = new Date(d.data_despesa + 'T12:00:00').toLocaleDateString('pt-BR');
-                        return `<div class="despesa-item">
-                            <div class="despesa-info">
-                                <div class="despesa-nome">${d.descricao}</div>
-                                <div class="despesa-detalhe">${dataFmt} · <span class="cat-badge">${catLabels[d.categoria] || d.categoria}</span></div>
-                            </div>
-                            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-                                <span style="font-weight:bold;color:#dc3545;">R$ ${Number(d.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
-                                <button class="btn-excluir" style="font-size:11px;padding:3px 8px;" onclick="confirmarExcluirDespesa(${d.id})">🗑️</button>
-                            </div>
-                        </div>`;
-                    }).join('');
-            }
+            cacheDespesas = json.despesas || [];
+            filtrarDespesas();
         } catch(e) {
             document.getElementById('listaDespesas').innerHTML = '<p style="color:#999;text-align:center;">Erro ao carregar dados financeiros.</p>';
         }
@@ -1908,6 +2090,9 @@ CREATE TABLE movimentacoes_estoque (
     async function abrirProdutos() {
         alternarTelas('produtos');
         fecharFormProduto();
+        document.getElementById('prodBusca').value = '';
+        document.getElementById('prodBuscaClear').style.display = 'none';
+        document.getElementById('prodResumo').textContent = '';
         await carregarProdutos();
     }
 
@@ -1921,7 +2106,7 @@ CREATE TABLE movimentacoes_estoque (
             const json = await res.json();
             if(json.status === 'sucesso') {
                 cacheProdutos = json.produtos;
-                renderizarProdutos(json.produtos);
+                filtrarProdutos();
             }
         } catch(e) {
             document.getElementById('listaProdutos').innerHTML = '<p style="color:#999;text-align:center;">Erro ao carregar catálogo.</p>';
