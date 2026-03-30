@@ -32,9 +32,9 @@ $senha_hash  = password_hash($senha, PASSWORD_DEFAULT);
 $data_expira = (new DateTime())->modify('+7 days')->format('Y-m-d H:i:s');
 
 try {
-    $sql = "INSERT INTO usuarios (nome_completo, email, senha, whatsapp, data_expiracao) 
+    $sql = "INSERT INTO usuarios (nome_completo, email, senha, whatsapp, data_expiracao)
             VALUES (:nome, :email, :senha, :zap, :expira)";
-    
+
     $stmt = $conn->prepare($sql);
     $stmt->execute([
         ':nome' => $nome,
@@ -43,6 +43,10 @@ try {
         ':zap' => $zap,
         ':expira' => $data_expira
     ]);
+
+    // Novo usuário vira dono da própria empresa (empresa_id = seu próprio id)
+    $novo_id = (int)$conn->lastInsertId();
+    $conn->prepare("UPDATE usuarios SET empresa_id = ? WHERE id = ?")->execute([$novo_id, $novo_id]);
 
     echo json_encode(["status" => "sucesso"]);
 
