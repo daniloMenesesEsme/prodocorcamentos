@@ -18,18 +18,23 @@ if(!$usuario_id || !is_numeric($usuario_id) || !$cliente) {
 }
 
 try {
-    $stmt = $conn->prepare(
-        "INSERT INTO orcamentos (usuario_id, cliente, itens, total, tipo, obs, status)
-         VALUES (:uid, :cliente, :itens, :total, :tipo, :obs, 'enviado')"
-    );
-    $stmt->execute([
-        ':uid'     => $usuario_id,
-        ':cliente' => $cliente,
-        ':itens'   => $itens,
-        ':total'   => $total,
-        ':tipo'    => $tipo,
-        ':obs'     => $obs
-    ]);
+    // Detecta se as colunas obs/status já existem
+    $cols = $conn->query("SHOW COLUMNS FROM orcamentos LIKE 'status'")->fetchAll();
+    $temStatus = count($cols) > 0;
+
+    if ($temStatus) {
+        $stmt = $conn->prepare(
+            "INSERT INTO orcamentos (usuario_id, cliente, itens, total, tipo, obs, status)
+             VALUES (:uid, :cliente, :itens, :total, :tipo, :obs, 'enviado')"
+        );
+        $stmt->execute([':uid'=>$usuario_id,':cliente'=>$cliente,':itens'=>$itens,':total'=>$total,':tipo'=>$tipo,':obs'=>$obs]);
+    } else {
+        $stmt = $conn->prepare(
+            "INSERT INTO orcamentos (usuario_id, cliente, itens, total, tipo)
+             VALUES (:uid, :cliente, :itens, :total, :tipo)"
+        );
+        $stmt->execute([':uid'=>$usuario_id,':cliente'=>$cliente,':itens'=>$itens,':total'=>$total,':tipo'=>$tipo]);
+    }
 
     echo json_encode(["status" => "sucesso", "id" => (int)$conn->lastInsertId()]);
 

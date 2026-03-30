@@ -13,8 +13,13 @@ if(!$usuario_id || !is_numeric($usuario_id)) {
 }
 
 try {
+    // Detecta se as colunas obs/status já existem (adicionadas pelo ponto B)
+    $cols = $conn->query("SHOW COLUMNS FROM orcamentos LIKE 'status'")->fetchAll();
+    $temStatus = count($cols) > 0;
+    $extraCols = $temStatus ? ", obs, status" : "";
+
     $stmt = $conn->prepare(
-        "SELECT id, cliente, itens, total, tipo, obs, status, criado_em,
+        "SELECT id, cliente, itens, total, tipo{$extraCols}, criado_em,
                 editado_em, editado_por, historico_edicoes
          FROM orcamentos
          WHERE usuario_id = :uid
@@ -30,6 +35,10 @@ try {
         $row['criado_em']         = date('d/m/Y H:i', strtotime($row['criado_em']));
         if ($row['editado_em']) {
             $row['editado_em'] = date('d/m/Y H:i', strtotime($row['editado_em']));
+        }
+        if (!$temStatus) {
+            $row['obs']    = '';
+            $row['status'] = 'enviado';
         }
     }
 
