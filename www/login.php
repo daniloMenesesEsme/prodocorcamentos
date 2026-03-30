@@ -78,10 +78,12 @@ try {
         ]);
     } else {
         echo json_encode([
-            "status"   => "sucesso",
-            "id"       => $usuario['id'],
-            "nome"     => $usuario['nome_completo'],
-            "validade" => $expira->format('d/m/Y')
+            "status"     => "sucesso",
+            "id"         => $usuario['id'],
+            "nome"       => $usuario['nome_completo'],
+            "validade"   => $expira->format('d/m/Y'),
+            "papel"      => $usuario['papel']      ?? 'dono',
+            "empresa_id" => $usuario['empresa_id'] ?? $usuario['id']
         ]);
     }
 

@@ -262,7 +262,10 @@
         
         <label>Crie uma Senha:</label>
         <input type="password" id="cadSenha" placeholder="Mínimo 6 dígitos">
-        
+
+        <label style="margin-top:12px;">Código de convite: <span style="font-size:11px;color:#888;">(opcional — recebeu de um colega?)</span></label>
+        <input type="text" id="cadConvite" placeholder="Ex: 387206" maxlength="6" style="letter-spacing:4px;text-align:center;">
+
         <button id="btnCadastro" class="btn-salvar" onclick="realizarCadastro()" style="background: #25d366; padding: 15px;">CRIAR CONTA E COMEÇAR</button>
         
         <p style="text-align: center; margin-top: 20px; font-size: 13px;">
@@ -420,6 +423,26 @@
         <input type="url" id="empSite" placeholder="https://seusite.com.br">
 
         <button id="btnSalvarEmpresa" class="btn-salvar" onclick="salvarEmpresa()" style="margin-top:20px;padding:15px;background:#25d366;">SALVAR DADOS DA EMPRESA</button>
+
+        <!-- Bloco de equipe — só dono/gerente veem o botão de convidar -->
+        <div id="blocoConvite" style="display:none;margin-top:24px;border-top:1px solid #eee;padding-top:18px;">
+            <p style="font-weight:bold;color:#075e54;margin-bottom:8px;">👥 Equipe da Empresa</p>
+            <div id="listaEquipe" style="margin-bottom:12px;"></div>
+            <button class="btn-salvar" onclick="gerarCodigoConvite()" style="background:#075e54;padding:12px;">🔗 Gerar Código de Convite</button>
+            <div id="blocoCodigoGerado" style="display:none;margin-top:12px;background:#f0fff4;border-radius:8px;padding:14px;text-align:center;">
+                <p style="margin:0 0 4px;font-size:12px;color:#666;">Código válido por 48 horas — compartilhe com o funcionário:</p>
+                <p id="codigoConviteGerado" style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#075e54;margin:8px 0;"></p>
+                <p style="margin:0;font-size:11px;color:#999;">O funcionário informa esse código ao criar a conta no app.</p>
+            </div>
+        </div>
+
+        <!-- Bloco para colaborador entrar numa empresa via código -->
+        <div id="blocoEntrarEmpresa" style="display:none;margin-top:24px;border-top:1px solid #eee;padding-top:18px;">
+            <p style="font-weight:bold;color:#075e54;margin-bottom:8px;">🏢 Entrar em uma Empresa</p>
+            <p style="font-size:12px;color:#666;margin-bottom:10px;">Recebeu um código de convite? Informe abaixo para vincular sua conta à empresa.</p>
+            <input type="text" id="inputCodigoEntrar" placeholder="Código de 6 dígitos" maxlength="6" style="letter-spacing:4px;text-align:center;margin-bottom:10px;">
+            <button class="btn-salvar" onclick="entrarNaEmpresa()" style="background:#25d366;padding:12px;">ENTRAR NA EMPRESA</button>
+        </div>
     </div>
 
     <!-- OVERLAY: CADASTRO RÁPIDO DE CLIENTE -->
@@ -1039,6 +1062,11 @@
             const resultado = await resposta.json();
 
             if(resultado.status === "sucesso") {
+                // Se veio código de convite, aplica automaticamente após login
+                const codigoConvite = document.getElementById('cadConvite').value.trim();
+                if (codigoConvite) {
+                    localStorage.setItem('convite_pendente', codigoConvite);
+                }
                 alert("✅ Conta criada com sucesso! Agora faça seu login.");
                 alternarTelas('login');
             } else {
@@ -1085,13 +1113,37 @@
                     return;
                 }
 
-                localStorage.setItem('usuario_id', resultado.id);
-                localStorage.setItem('usuario_nome', resultado.nome);
+                localStorage.setItem('usuario_id',    resultado.id);
+                localStorage.setItem('usuario_nome',  resultado.nome);
                 localStorage.setItem('usuario_validade', resultado.validade);
+                localStorage.setItem('usuario_papel', resultado.papel      ?? 'dono');
+                localStorage.setItem('empresa_id',    resultado.empresa_id ?? resultado.id);
                 localStorage.setItem('logado', 'sim');
-                
-                alert("Bem-vindo, " + resultado.nome + "!");
-                
+
+                // Aplica convite pendente (se vier do cadastro com código)
+                const convitePendente = localStorage.getItem('convite_pendente');
+                if (convitePendente) {
+                    localStorage.removeItem('convite_pendente');
+                    const fd = new FormData();
+                    fd.append('usuario_id', resultado.id);
+                    fd.append('codigo', convitePendente);
+                    try {
+                        const r = await fetch(`${SERVER_URL}/aceitar_convite.php`, { method:'POST', body:fd });
+                        const j = await r.json();
+                        if (j.status === 'sucesso') {
+                            localStorage.setItem('usuario_papel', j.papel);
+                            localStorage.setItem('empresa_id',    j.empresa_id);
+                            alert("Bem-vindo, " + resultado.nome + "!\n✅ Você entrou na empresa com sucesso.");
+                        } else {
+                            alert("Bem-vindo, " + resultado.nome + "!\n⚠️ Código de convite inválido ou expirado.");
+                        }
+                    } catch(e) {
+                        alert("Bem-vindo, " + resultado.nome + "!");
+                    }
+                } else {
+                    alert("Bem-vindo, " + resultado.nome + "!");
+                }
+
                 alternarTelas('principal');
                 carregarDadosIniciais();
             } 
@@ -1147,7 +1199,21 @@
     async function abrirEmpresa() {
         alternarTelas('empresa');
         const usuario_id = localStorage.getItem('usuario_id');
+        const papel      = localStorage.getItem('usuario_papel') || 'dono';
         if(!usuario_id) return;
+
+        // Mostra bloco correto conforme papel
+        const blocoConvite      = document.getElementById('blocoConvite');
+        const blocoEntrarEmpresa = document.getElementById('blocoEntrarEmpresa');
+        if (papel === 'dono' || papel === 'gerente') {
+            blocoConvite.style.display      = 'block';
+            blocoEntrarEmpresa.style.display = 'none';
+            carregarEquipe();
+        } else {
+            blocoConvite.style.display      = 'none';
+            blocoEntrarEmpresa.style.display = 'block';
+        }
+
         try {
             const dados = new FormData();
             dados.append('usuario_id', usuario_id);
@@ -1169,6 +1235,67 @@
                 document.getElementById('empSite').value      = e.site           || '';
             }
         } catch(e) { /* Falha silenciosa */ }
+    }
+
+    async function carregarEquipe() {
+        const empresa_id = localStorage.getItem('empresa_id');
+        const usuario_id = localStorage.getItem('usuario_id');
+        if (!empresa_id) return;
+        try {
+            const fd = new FormData();
+            fd.append('empresa_id', empresa_id);
+            fd.append('usuario_id', usuario_id);
+            const res  = await fetch(`${SERVER_URL}/listar_equipe.php`, { method:'POST', body:fd });
+            const json = await res.json();
+            if (json.status !== 'sucesso') return;
+            const papelLabel = { dono:'Dono', gerente:'Gerente', colaborador:'Colaborador' };
+            const el = document.getElementById('listaEquipe');
+            if (json.membros.length === 0) {
+                el.innerHTML = '<p style="font-size:12px;color:#999;">Nenhum membro ainda. Gere um código e convide!</p>';
+                return;
+            }
+            el.innerHTML = json.membros.map(m =>
+                `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;">
+                    <span style="font-size:13px;">👤 ${m.nome_completo}</span>
+                    <span style="font-size:11px;color:#888;background:#f0f0f0;padding:2px 8px;border-radius:10px;">${papelLabel[m.papel] || m.papel}</span>
+                </div>`
+            ).join('');
+        } catch(e) {}
+    }
+
+    async function gerarCodigoConvite() {
+        const usuario_id = localStorage.getItem('usuario_id');
+        const fd = new FormData();
+        fd.append('usuario_id', usuario_id);
+        try {
+            const res  = await fetch(`${SERVER_URL}/gerar_convite.php`, { method:'POST', body:fd });
+            const json = await res.json();
+            if (json.status !== 'sucesso') { alert('❌ ' + json.mensagem); return; }
+            document.getElementById('codigoConviteGerado').textContent = json.codigo;
+            document.getElementById('blocoCodigoGerado').style.display = 'block';
+        } catch(e) {
+            alert('Erro ao gerar convite.');
+        }
+    }
+
+    async function entrarNaEmpresa() {
+        const usuario_id = localStorage.getItem('usuario_id');
+        const codigo     = document.getElementById('inputCodigoEntrar').value.trim();
+        if (!codigo || codigo.length !== 6) { alert('Informe o código de 6 dígitos.'); return; }
+        const fd = new FormData();
+        fd.append('usuario_id', usuario_id);
+        fd.append('codigo',     codigo);
+        try {
+            const res  = await fetch(`${SERVER_URL}/aceitar_convite.php`, { method:'POST', body:fd });
+            const json = await res.json();
+            if (json.status !== 'sucesso') { alert('❌ ' + json.mensagem); return; }
+            localStorage.setItem('usuario_papel', json.papel);
+            localStorage.setItem('empresa_id',    json.empresa_id);
+            alert('✅ Você entrou na empresa com sucesso!');
+            document.getElementById('blocoEntrarEmpresa').style.display = 'none';
+        } catch(e) {
+            alert('Erro na conexão.');
+        }
     }
 
     async function buscarCEP() {
