@@ -7,7 +7,12 @@ try {
     $usuario_id = intval($_POST['usuario_id'] ?? 0);
     if (!$usuario_id) { echo json_encode(['status'=>'erro','mensagem'=>'ID inválido']); exit; }
 
-    $stmt = $conn->prepare("SELECT COALESCE(SUM(total), 0) as receita FROM orcamentos WHERE usuario_id = ? AND MONTH(criado_em) = MONTH(NOW()) AND YEAR(criado_em) = YEAR(NOW())");
+    // Detecta se coluna status existe
+    $cols = $conn->query("SHOW COLUMNS FROM orcamentos LIKE 'status'")->fetchAll();
+    $temStatus = count($cols) > 0;
+    $wAprov = $temStatus ? "AND status = 'aprovado'" : "";
+
+    $stmt = $conn->prepare("SELECT COALESCE(SUM(total), 0) as receita FROM orcamentos WHERE usuario_id = ? AND MONTH(criado_em) = MONTH(NOW()) AND YEAR(criado_em) = YEAR(NOW()) $wAprov");
     $stmt->execute([$usuario_id]);
     $receita_mes = (float)$stmt->fetchColumn();
 
