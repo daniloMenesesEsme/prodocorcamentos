@@ -163,6 +163,22 @@
         .hist-data-filtro input[type=date] { flex:1; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:13px; }
         .hist-resumo { font-size:12px; color:#888; margin-bottom:8px; }
 
+        /* Status de orçamento */
+        .status-badge { display:inline-block; border-radius:12px; padding:2px 10px; font-size:11px; font-weight:bold; margin-top:4px; }
+        .status-enviado   { background:#cfe2ff; color:#0a58ca; }
+        .status-aprovado  { background:#d1e7dd; color:#146c43; }
+        .status-recusado  { background:#f8d7da; color:#842029; }
+        .status-expirado  { background:#e2e3e5; color:#41464b; }
+        .btn-status { border:none; border-radius:6px; padding:8px 0; font-size:12px; font-weight:bold; cursor:pointer; flex:1; }
+        .btn-status-aprovado { background:#d1e7dd; color:#146c43; }
+        .btn-status-aprovado.ativo { background:#25a244; color:white; }
+        .btn-status-recusado { background:#f8d7da; color:#842029; }
+        .btn-status-recusado.ativo { background:#dc3545; color:white; }
+        /* Banner de follow-up */
+        #bannerPendentes { display:none; background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:12px 14px; margin-bottom:12px; cursor:pointer; }
+        .banner-pendentes-txt { font-size:13px; font-weight:bold; color:#856404; }
+        .banner-pendentes-sub { font-size:11px; color:#856404; margin-top:2px; }
+
         /* Visualização de orçamento */
         #overlayVerOrc { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; padding:15px; overflow-y:auto; }
         .ver-orc-modal { background:white; border-radius:10px; padding:20px; max-width:500px; margin:0 auto; }
@@ -332,12 +348,20 @@
             <button class="hist-busca-clear" id="histBuscaClear" onclick="limparBuscaHistorico()">✕</button>
         </div>
 
+        <!-- Banner follow-up -->
+        <div id="bannerPendentes" onclick="setFiltroHist('pendente')">
+            <div class="banner-pendentes-txt">⏳ <span id="bannerPendentesTxt"></span></div>
+            <div class="banner-pendentes-sub">Toque para ver os pendentes e fazer follow-up</div>
+        </div>
+
         <!-- Filtros rápidos -->
         <div class="hist-filtros">
             <button class="hist-filtro-btn ativo" id="hfTodos"     onclick="setFiltroHist('todos')">Todos</button>
             <button class="hist-filtro-btn"        id="hfHoje"      onclick="setFiltroHist('hoje')">Hoje</button>
             <button class="hist-filtro-btn"        id="hfSemana"    onclick="setFiltroHist('semana')">7 dias</button>
             <button class="hist-filtro-btn"        id="hfMes"       onclick="setFiltroHist('mes')">Este mês</button>
+            <button class="hist-filtro-btn"        id="hfPendente"  onclick="setFiltroHist('pendente')">⏳ Pendentes</button>
+            <button class="hist-filtro-btn"        id="hfAprovado"  onclick="setFiltroHist('aprovado')">✅ Aprovados</button>
             <button class="hist-filtro-btn"        id="hfWhatsapp"  onclick="setFiltroHist('whatsapp')">📱 WhatsApp</button>
             <button class="hist-filtro-btn"        id="hfPdf"       onclick="setFiltroHist('pdf')">📄 PDF</button>
             <button class="hist-filtro-btn"        id="hfPeriodo"   onclick="setFiltroHist('periodo')">📅 Período</button>
@@ -785,6 +809,18 @@
             <div style="display:flex;gap:10px;font-size:11px;color:#999;margin-top:8px;">
                 <span id="verOrcData"></span>
                 <span id="verOrcEditadoInfo"></span>
+            </div>
+
+            <!-- Status atual -->
+            <div style="margin-top:10px;">
+                <span style="font-size:12px;color:#888;">Status:</span>
+                <span id="verOrcStatusBadge" class="status-badge" style="margin-left:6px;"></span>
+            </div>
+
+            <!-- Alterar status -->
+            <div style="display:flex;gap:8px;margin-top:10px;">
+                <button class="btn-status btn-status-aprovado" id="btnStatusAprovado" onclick="alterarStatusOrc('aprovado')">✅ Aprovado</button>
+                <button class="btn-status btn-status-recusado" id="btnStatusRecusado" onclick="alterarStatusOrc('recusado')">❌ Recusado</button>
             </div>
 
             <!-- Badge de revisão (visível só quando foi editado) -->
@@ -2760,7 +2796,13 @@ CREATE TABLE movimentacoes_estoque (
             dados.append('total', total);
             dados.append('tipo', tipo);
             dados.append('obs', obs);
-            await fetch(`${SERVER_URL}/salvar_orcamento.php`, { method: 'POST', body: dados });
+            const res  = await fetch(`${SERVER_URL}/salvar_orcamento.php`, { method: 'POST', body: dados });
+            const json = await res.json();
+            // Atualiza id no cache local para permitir alterar status sem recarregar
+            if (json.id && cacheHistorico.length > 0) {
+                cacheHistorico[0].id = json.id;
+                cacheHistorico[0].status = 'enviado';
+            }
         } catch(e) {
             // Falha silenciosa — já está salvo no localStorage
         }
@@ -2806,6 +2848,7 @@ CREATE TABLE movimentacoes_estoque (
 
         // Inicializa resumo e renderiza
         filtrarHistorico();
+        atualizarBannerPendentes();
     }
 
     // ---- VISUALIZAR / REENVIAR ORÇAMENTO ----
@@ -2816,10 +2859,10 @@ CREATE TABLE movimentacoes_estoque (
     function setFiltroHist(filtro) {
         filtroHistAtivo = filtro;
         // Atualiza botões
-        ['hfTodos','hfHoje','hfSemana','hfMes','hfWhatsapp','hfPdf','hfPeriodo'].forEach(id => {
+        ['hfTodos','hfHoje','hfSemana','hfMes','hfPendente','hfAprovado','hfWhatsapp','hfPdf','hfPeriodo'].forEach(id => {
             document.getElementById(id).classList.remove('ativo');
         });
-        const mapa = { todos:'hfTodos', hoje:'hfHoje', semana:'hfSemana', mes:'hfMes', whatsapp:'hfWhatsapp', pdf:'hfPdf', periodo:'hfPeriodo' };
+        const mapa = { todos:'hfTodos', hoje:'hfHoje', semana:'hfSemana', mes:'hfMes', pendente:'hfPendente', aprovado:'hfAprovado', whatsapp:'hfWhatsapp', pdf:'hfPdf', periodo:'hfPeriodo' };
         document.getElementById(mapa[filtro]).classList.add('ativo');
         // Mostra/oculta filtro de período
         document.getElementById('histDataFiltro').style.display = filtro === 'periodo' ? 'flex' : 'none';
@@ -2870,6 +2913,12 @@ CREATE TABLE movimentacoes_estoque (
             if (filtroHistAtivo === 'mes') {
                 return dataOrc && dataOrc >= inicioMes;
             }
+            if (filtroHistAtivo === 'pendente') {
+                return !h.status || h.status === 'enviado';
+            }
+            if (filtroHistAtivo === 'aprovado') {
+                return h.status === 'aprovado';
+            }
             if (filtroHistAtivo === 'whatsapp') {
                 return h.tipo === 'whatsapp';
             }
@@ -2902,6 +2951,9 @@ CREATE TABLE movimentacoes_estoque (
         filtrarHistorico();
     }
 
+    const STATUS_LABEL = { enviado:'⏳ Enviado', aprovado:'✅ Aprovado', recusado:'❌ Recusado', expirado:'🕐 Expirado' };
+    const STATUS_CLASS = { enviado:'status-enviado', aprovado:'status-aprovado', recusado:'status-recusado', expirado:'status-expirado' };
+
     function renderizarHistorico(historico) {
         const lista = document.getElementById('listaHistorico');
         if (historico.length === 0) {
@@ -2914,6 +2966,8 @@ CREATE TABLE movimentacoes_estoque (
             const totalStr = Number(h.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             const tipoIcon = h.tipo === 'whatsapp' ? '📱 WhatsApp' : '📄 PDF';
             const data     = h.criado_em || h.data;
+            const statusKey = h.status || 'enviado';
+            const statusHtml = `<span class="status-badge ${STATUS_CLASS[statusKey]}">${STATUS_LABEL[statusKey]}</span>`;
             const editado  = h.editado_em
                 ? `<span class="hi-editado">✏️ Editado em ${h.editado_em} por ${h.editado_por}</span>`
                 : '';
@@ -2921,7 +2975,7 @@ CREATE TABLE movimentacoes_estoque (
                 <div style="display:flex;gap:6px;margin-top:8px;">
                     <button onclick="abrirVerOrc(${h.id})"
                         style="flex:1;background:#17a2b8;color:white;border:none;border-radius:5px;padding:6px;cursor:pointer;font-size:12px;font-weight:bold;">
-                        👁️ Visualizar
+                        👁️ Ver / Status
                     </button>
                     <button onclick="abrirEditarOrc(${h.id})"
                         style="flex:1;background:#ffc107;color:#333;border:none;border-radius:5px;padding:6px;cursor:pointer;font-size:12px;font-weight:bold;">
@@ -2940,6 +2994,7 @@ CREATE TABLE movimentacoes_estoque (
                         <span class="hi-total">R$ ${totalStr}</span>
                         <span class="hi-tipo">${tipoIcon}</span>
                     </div>
+                    <div style="margin-top:4px;">${statusHtml}</div>
                     ${btns}
                 </div>`;
         }).join('');
@@ -2978,12 +3033,78 @@ CREATE TABLE movimentacoes_estoque (
             badgeEl.style.display = 'none';
         }
 
+        // Status
+        const statusKey = h.status || 'enviado';
+        const badgeStatus = document.getElementById('verOrcStatusBadge');
+        badgeStatus.textContent = STATUS_LABEL[statusKey] || statusKey;
+        badgeStatus.className = `status-badge ${STATUS_CLASS[statusKey] || ''}`;
+        document.getElementById('btnStatusAprovado').classList.toggle('ativo', statusKey === 'aprovado');
+        document.getElementById('btnStatusRecusado').classList.toggle('ativo', statusKey === 'recusado');
+
         document.getElementById('overlayVerOrc').style.display = 'block';
     }
 
     function fecharVerOrc() {
         document.getElementById('overlayVerOrc').style.display = 'none';
         orcamentoAtualVer = null;
+    }
+
+    async function alterarStatusOrc(novoStatus) {
+        const h = orcamentoAtualVer;
+        if (!h || !h.id) return;
+
+        const usuario_id = localStorage.getItem('usuario_id');
+        const dados = new FormData();
+        dados.append('usuario_id',   usuario_id);
+        dados.append('orcamento_id', h.id);
+        dados.append('status',       novoStatus);
+
+        try {
+            const res  = await fetch(`${SERVER_URL}/atualizar_status_orcamento.php`, { method:'POST', body:dados });
+            const json = await res.json();
+            if (json.status !== 'sucesso') { alert('❌ ' + json.mensagem); return; }
+
+            // Atualiza cache local
+            h.status = novoStatus;
+            const cached = cacheHistorico.find(x => x.id == h.id);
+            if (cached) cached.status = novoStatus;
+
+            // Atualiza badge e botões no overlay
+            const badgeStatus = document.getElementById('verOrcStatusBadge');
+            badgeStatus.textContent = STATUS_LABEL[novoStatus];
+            badgeStatus.className = `status-badge ${STATUS_CLASS[novoStatus]}`;
+            document.getElementById('btnStatusAprovado').classList.toggle('ativo', novoStatus === 'aprovado');
+            document.getElementById('btnStatusRecusado').classList.toggle('ativo', novoStatus === 'recusado');
+
+            // Re-renderiza lista para refletir novo status
+            filtrarHistorico();
+            atualizarBannerPendentes();
+        } catch(e) {
+            alert('Erro na conexão com o servidor.');
+        }
+    }
+
+    function atualizarBannerPendentes() {
+        // Conta enviados há mais de 2 dias sem resposta
+        const banner  = document.getElementById('bannerPendentes');
+        const agora   = new Date();
+        const limite  = new Date(agora); limite.setDate(agora.getDate() - 2);
+        const pendentes = cacheHistorico.filter(h => {
+            if (h.status && h.status !== 'enviado') return false;
+            const dataStr = h.criado_em || h.data || '';
+            if (!dataStr.includes('/')) return false;
+            const [d, m, resto] = dataStr.split('/');
+            const [y] = (resto || '').split(' ');
+            const dataOrc = new Date(`${y}-${m}-${d}T00:00:00`);
+            return dataOrc <= limite;
+        });
+        if (pendentes.length > 0) {
+            document.getElementById('bannerPendentesTxt').textContent =
+                `${pendentes.length} orçamento${pendentes.length > 1 ? 's' : ''} sem resposta há mais de 2 dias`;
+            banner.style.display = 'block';
+        } else {
+            banner.style.display = 'none';
+        }
     }
 
     function reenviarOrcamento() {

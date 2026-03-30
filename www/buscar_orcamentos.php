@@ -14,7 +14,7 @@ if(!$usuario_id || !is_numeric($usuario_id)) {
 
 try {
     $stmt = $conn->prepare(
-        "SELECT id, cliente, itens, total, tipo, criado_em,
+        "SELECT id, cliente, itens, total, tipo, obs, status, criado_em,
                 editado_em, editado_por, historico_edicoes
          FROM orcamentos
          WHERE usuario_id = :uid
