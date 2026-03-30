@@ -1055,7 +1055,7 @@
             document.getElementById(id).style.display = 'none';
         });
 
-        const telasLogadas = ['principal','empresa','historico','produtos','dashboard','clientes','financeiro','relatorios','estoque'];
+        const telasLogadas = ['principal','empresa','historico','produtos','dashboard','clientes','financeiro','relatorios','estoque','visaoempresa'];
         document.getElementById('bottomNav').style.display = telasLogadas.includes(qual) ? 'flex' : 'none';
 
         if(qual === 'login')      document.getElementById('telaLogin').style.display = 'block';
@@ -1078,7 +1078,7 @@
         if(qual === 'dashboard')  document.getElementById('navDashboard').classList.add('ativo');
         if(qual === 'clientes')   document.getElementById('navClientes').classList.add('ativo');
         if(qual === 'financeiro') document.getElementById('navFinanceiro').classList.add('ativo');
-        if(['empresa','produtos','historico','relatorios','estoque'].includes(qual)) document.getElementById('navMais').classList.add('ativo');
+        if(['empresa','produtos','historico','relatorios','estoque','visaoempresa'].includes(qual)) document.getElementById('navMais').classList.add('ativo');
     }
 
     async function realizarCadastro() {
