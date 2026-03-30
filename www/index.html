@@ -1036,19 +1036,23 @@
             document.getElementById('infoUsuario').textContent = `Olá, ${nome} | Licença válida até ${validade}`;
         }
 
-        // Busca dados da empresa para usar em orçamentos (cache em localStorage)
         const usuario_id = localStorage.getItem('usuario_id');
         if(!usuario_id) return;
 
-        if(localStorage.getItem('empresa')) return; // já cacheado
+        // Carrega clientes em background para o autocomplete da tela principal
+        const dadosCli = new FormData();
+        dadosCli.append('usuario_id', usuario_id);
+        fetch(`${SERVER_URL}/listar_clientes.php`, { method:'POST', body:dadosCli })
+            .then(r => r.json())
+            .then(j => { if(j.status === 'sucesso') cacheClientes = j.clientes; })
+            .catch(() => {});
 
+        // Busca nome da empresa para usar em orçamentos (cache em localStorage)
+        if(localStorage.getItem('empresa')) return; // já cacheado
         try {
             const dados = new FormData();
             dados.append('usuario_id', usuario_id);
-            const resposta = await fetch(`${SERVER_URL}/buscar_config.php`, {
-                method: 'POST',
-                body: dados
-            });
+            const resposta = await fetch(`${SERVER_URL}/buscar_config.php`, { method:'POST', body:dados });
             const resultado = await resposta.json();
             if(resultado.status === 'sucesso') {
                 localStorage.setItem('empresa', resultado.empresa || '');
@@ -1968,17 +1972,7 @@ CREATE TABLE movimentacoes_estoque (
         const obs = document.getElementById('orcObservacoes');
         if (obs) obs.value = '';
         document.getElementById('diasValidade').value = '7';
-        // Pré-carrega clientes para autocomplete se cache vazio
-        if (cacheClientes.length === 0) {
-            const uid = localStorage.getItem('usuario_id');
-            if (uid) {
-                const d = new FormData(); d.append('usuario_id', uid);
-                fetch(`${SERVER_URL}/listar_clientes.php`, { method:'POST', body:d })
-                    .then(r => r.json())
-                    .then(j => { if (j.status === 'sucesso') cacheClientes = j.clientes; })
-                    .catch(() => {});
-            }
-        }
+        // cacheClientes já carregado por carregarDadosIniciais() na inicialização
     }
 
     function mostrarDropdownClientes() {
