@@ -1106,6 +1106,8 @@
             const resultado = await resposta.json();
 
             if(resultado.status === "sucesso") {
+                // Salva convite ANTES do clear para não perder
+                const convitePendente = localStorage.getItem('convite_pendente');
                 localStorage.clear();
 
                 if(!resultado.id) {
@@ -1119,9 +1121,6 @@
                 localStorage.setItem('usuario_papel', resultado.papel      ?? 'dono');
                 localStorage.setItem('empresa_id',    resultado.empresa_id ?? resultado.id);
                 localStorage.setItem('logado', 'sim');
-
-                // Aplica convite pendente (se vier do cadastro com código)
-                const convitePendente = localStorage.getItem('convite_pendente');
                 if (convitePendente) {
                     localStorage.removeItem('convite_pendente');
                     const fd = new FormData();
