@@ -523,35 +523,59 @@
         <h2>📊 Dashboard</h2>
         <p style="text-align:center;font-size:12px;color:#666;margin:0 0 5px;" id="dashMesLabel"></p>
 
+        <!-- Receita real (aprovados) + Despesas + Saldo -->
         <div class="dash-grid">
             <div class="dash-card verde">
-                <div class="dash-numero" id="dashOrcMes">0</div>
-                <div class="dash-label">Orçamentos este mês</div>
-            </div>
-            <div class="dash-card verde">
                 <div class="dash-numero" id="dashReceitaMes">R$ 0</div>
-                <div class="dash-label">Receita este mês</div>
+                <div class="dash-label">✅ Receita aprovada</div>
             </div>
             <div class="dash-card vermelho">
                 <div class="dash-numero" id="dashDespesasMes">R$ 0</div>
-                <div class="dash-label">Despesas este mês</div>
+                <div class="dash-label">Despesas do mês</div>
             </div>
             <div class="dash-card roxo">
                 <div class="dash-numero" id="dashSaldoMes">R$ 0</div>
-                <div class="dash-label">Saldo do mês</div>
+                <div class="dash-label">Saldo real do mês</div>
             </div>
         </div>
 
-        <div style="background:#f9f9f9;border-radius:8px;padding:12px;margin-top:5px;">
-            <p style="font-weight:bold;color:#075e54;margin:0 0 8px;font-size:13px;">📦 Totais gerais</p>
+        <!-- Funil do mês -->
+        <div style="background:#f9f9f9;border-radius:8px;padding:12px;margin-top:8px;">
+            <p style="font-weight:bold;color:#075e54;margin:0 0 8px;font-size:13px;">📊 Funil de propostas — este mês</p>
+            <div class="dash-grid" style="margin:0;gap:6px;">
+                <div class="dash-card" style="margin:0;background:#f0f7ff;">
+                    <div class="dash-numero" style="font-size:18px;" id="dashOrcMes">0</div>
+                    <div class="dash-label">Enviadas</div>
+                </div>
+                <div class="dash-card" style="margin:0;background:#d1e7dd;">
+                    <div class="dash-numero" style="font-size:18px;color:#146c43;" id="dashAprovadosMes">0</div>
+                    <div class="dash-label" style="color:#146c43;">Aprovadas</div>
+                </div>
+                <div class="dash-card" style="margin:0;background:#fff3cd;">
+                    <div class="dash-numero" style="font-size:18px;color:#856404;" id="dashPendentesMes">0</div>
+                    <div class="dash-label" style="color:#856404;">Pendentes</div>
+                </div>
+                <div class="dash-card" style="margin:0;background:#f8d7da;">
+                    <div class="dash-numero" style="font-size:18px;color:#842029;" id="dashRecusadosMes">0</div>
+                    <div class="dash-label" style="color:#842029;">Recusadas</div>
+                </div>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:#888;text-align:center;">
+                Em negociação: <strong id="dashValPendentes">R$ 0</strong>
+            </div>
+        </div>
+
+        <!-- Totais gerais -->
+        <div style="background:#f9f9f9;border-radius:8px;padding:12px;margin-top:8px;">
+            <p style="font-weight:bold;color:#075e54;margin:0 0 8px;font-size:13px;">📦 Totais gerais (acumulado)</p>
             <div class="dash-grid" style="margin:0;">
                 <div class="dash-card" style="margin:0;">
                     <div class="dash-numero" id="dashTotalOrc">0</div>
-                    <div class="dash-label">Total de orçamentos</div>
+                    <div class="dash-label">Orçamentos gerados</div>
                 </div>
-                <div class="dash-card" style="margin:0;">
-                    <div class="dash-numero" id="dashReceitaTotal">R$ 0</div>
-                    <div class="dash-label">Receita total acumulada</div>
+                <div class="dash-card" style="margin:0;background:#d1e7dd;">
+                    <div class="dash-numero" style="color:#146c43;" id="dashReceitaTotal">R$ 0</div>
+                    <div class="dash-label" style="color:#146c43;">Receita confirmada</div>
                 </div>
             </div>
         </div>
@@ -716,21 +740,43 @@
 
         <!-- Sumário do período -->
         <div class="rel-sumario">
-            <div class="rel-card" style="background:#f0fff4;">
-                <div class="rel-numero" style="color:#25d366;" id="relReceita">R$ 0</div>
-                <div class="rel-label">Receita do período</div>
+            <div class="rel-card" style="background:#d1e7dd;">
+                <div class="rel-numero" style="color:#146c43;" id="relReceita">R$ 0</div>
+                <div class="rel-label">✅ Receita aprovada</div>
             </div>
             <div class="rel-card" style="background:#fff5f5;">
                 <div class="rel-numero" style="color:#dc3545;" id="relDespesas">R$ 0</div>
-                <div class="rel-label">Despesas do período</div>
+                <div class="rel-label">Despesas</div>
             </div>
             <div class="rel-card" style="background:#f8f0ff;">
                 <div class="rel-numero" style="color:#6f42c1;" id="relSaldo">R$ 0</div>
-                <div class="rel-label">Saldo</div>
+                <div class="rel-label">Saldo real</div>
             </div>
             <div class="rel-card" style="background:#f0f7ff;">
                 <div class="rel-numero" style="color:#075e54;" id="relQtdOrc">0</div>
-                <div class="rel-label">Orçamentos gerados</div>
+                <div class="rel-label">Propostas geradas</div>
+            </div>
+        </div>
+
+        <!-- Funil de propostas -->
+        <div style="background:#f9f9f9;border-radius:8px;padding:10px;margin-bottom:10px;">
+            <p style="font-weight:bold;color:#075e54;margin:0 0 8px;font-size:12px;">📊 Funil de propostas</p>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:60px;background:#d1e7dd;border-radius:6px;padding:8px;text-align:center;">
+                    <div style="font-weight:bold;color:#146c43;font-size:15px;" id="relAprovQtd">0</div>
+                    <div style="font-size:10px;color:#146c43;">✅ Aprovadas</div>
+                    <div style="font-size:10px;color:#146c43;" id="relAprovVal"></div>
+                </div>
+                <div style="flex:1;min-width:60px;background:#fff3cd;border-radius:6px;padding:8px;text-align:center;">
+                    <div style="font-weight:bold;color:#856404;font-size:15px;" id="relPendQtd">0</div>
+                    <div style="font-size:10px;color:#856404;">⏳ Pendentes</div>
+                    <div style="font-size:10px;color:#856404;" id="relPendVal"></div>
+                </div>
+                <div style="flex:1;min-width:60px;background:#f8d7da;border-radius:6px;padding:8px;text-align:center;">
+                    <div style="font-weight:bold;color:#842029;font-size:15px;" id="relRecusQtd">0</div>
+                    <div style="font-size:10px;color:#842029;">❌ Recusadas</div>
+                    <div style="font-size:10px;color:#842029;" id="relRecusVal"></div>
+                </div>
             </div>
         </div>
 
@@ -1564,6 +1610,14 @@ CREATE TABLE movimentacoes_estoque (
         saldoEl.textContent = fmt(d.saldo);
         saldoEl.style.color = d.saldo >= 0 ? '#6f42c1' : '#dc3545';
 
+        // Funil de status
+        document.getElementById('relAprovQtd').textContent = d.qtd_aprovados ?? 0;
+        document.getElementById('relAprovVal').textContent = (d.qtd_aprovados > 0) ? fmt(d.val_aprovados) : '';
+        document.getElementById('relPendQtd').textContent  = d.qtd_pendentes ?? 0;
+        document.getElementById('relPendVal').textContent  = (d.qtd_pendentes > 0) ? fmt(d.val_pendentes) : '';
+        document.getElementById('relRecusQtd').textContent = d.qtd_recusados ?? 0;
+        document.getElementById('relRecusVal').textContent = (d.qtd_recusados > 0) ? fmt(d.val_recusados) : '';
+
         // Monta HTML das seções
         let html = '';
 
@@ -1648,13 +1702,16 @@ CREATE TABLE movimentacoes_estoque (
         const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         const periodo = `${meses[d.mes]}/${d.ano}`;
 
+        const statusLabel = { aprovado: 'Aprovado', enviado: 'Enviado', recusado: 'Recusado', expirado: 'Expirado' };
         const linhasOrc = d.orcamentos.map(o => {
             const data = new Date(o.criado_em).toLocaleDateString('pt-BR');
             const itensStr = (o.itens || []).map(i => i.desc).filter(Boolean).join(', ');
+            const stLabel  = statusLabel[o.status] || o.status || '';
             return `<tr>
                 <td style="padding:6px;border-bottom:1px solid #eee;">${o.cliente}</td>
                 <td style="padding:6px;border-bottom:1px solid #eee;font-size:11px;color:#666;">${itensStr}</td>
                 <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${fmt(o.total)}</td>
+                <td style="padding:6px;border-bottom:1px solid #eee;text-align:center;font-size:11px;">${stLabel}</td>
                 <td style="padding:6px;border-bottom:1px solid #eee;text-align:center;font-size:11px;">${data}</td>
             </tr>`;
         }).join('');
@@ -1670,7 +1727,8 @@ CREATE TABLE movimentacoes_estoque (
                 <tr>
                     <td style="padding:10px;background:#f0fff4;border-radius:8px;text-align:center;width:25%;">
                         <div style="font-size:20px;font-weight:bold;color:#25d366;">${fmt(d.receita_total)}</div>
-                        <div style="font-size:11px;color:#888;">Receita do período</div>
+                        <div style="font-size:11px;color:#888;">Receita confirmada</div>
+                        <div style="font-size:10px;color:#aaa;">(aprovados)</div>
                     </td>
                     <td style="padding:10px;background:#fff5f5;border-radius:8px;text-align:center;width:25%;">
                         <div style="font-size:20px;font-weight:bold;color:#dc3545;">${fmt(d.despesas_total)}</div>
@@ -1678,11 +1736,28 @@ CREATE TABLE movimentacoes_estoque (
                     </td>
                     <td style="padding:10px;background:#f8f0ff;border-radius:8px;text-align:center;width:25%;">
                         <div style="font-size:20px;font-weight:bold;color:#6f42c1;">${fmt(d.saldo)}</div>
-                        <div style="font-size:11px;color:#888;">Saldo</div>
+                        <div style="font-size:11px;color:#888;">Saldo real</div>
                     </td>
                     <td style="padding:10px;background:#f0f7ff;border-radius:8px;text-align:center;width:25%;">
                         <div style="font-size:20px;font-weight:bold;color:#075e54;">${d.total_orc}</div>
-                        <div style="font-size:11px;color:#888;">Orçamentos</div>
+                        <div style="font-size:11px;color:#888;">Propostas geradas</div>
+                    </td>
+                </tr>
+            </table>
+
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                <tr>
+                    <td style="padding:8px;background:#d1e7dd;border-radius:8px;text-align:center;width:33%;">
+                        <div style="font-weight:bold;color:#198754;">${d.qtd_aprovados ?? 0} aprovadas</div>
+                        ${(d.qtd_aprovados > 0) ? `<div style="font-size:11px;color:#198754;">${fmt(d.val_aprovados)}</div>` : ''}
+                    </td>
+                    <td style="padding:8px;background:#fff3cd;border-radius:8px;text-align:center;width:33%;">
+                        <div style="font-weight:bold;color:#856404;">${d.qtd_pendentes ?? 0} pendentes</div>
+                        ${(d.qtd_pendentes > 0) ? `<div style="font-size:11px;color:#856404;">${fmt(d.val_pendentes)}</div>` : ''}
+                    </td>
+                    <td style="padding:8px;background:#f8d7da;border-radius:8px;text-align:center;width:33%;">
+                        <div style="font-weight:bold;color:#842029;">${d.qtd_recusados ?? 0} recusadas</div>
+                        ${(d.qtd_recusados > 0) ? `<div style="font-size:11px;color:#842029;">${fmt(d.val_recusados)}</div>` : ''}
                     </td>
                 </tr>
             </table>
@@ -1695,6 +1770,7 @@ CREATE TABLE movimentacoes_estoque (
                         <th style="padding:8px;text-align:left;font-size:12px;">Cliente</th>
                         <th style="padding:8px;text-align:left;font-size:12px;">Itens</th>
                         <th style="padding:8px;text-align:right;font-size:12px;">Total</th>
+                        <th style="padding:8px;text-align:center;font-size:12px;">Status</th>
                         <th style="padding:8px;text-align:center;font-size:12px;">Data</th>
                     </tr>
                 </thead>
@@ -1702,7 +1778,7 @@ CREATE TABLE movimentacoes_estoque (
             </table>` : ''}
 
             ${d.top_clientes.length > 0 ? `
-            <h3 style="color:#075e54;margin-top:20px;">Top Clientes</h3>
+            <h3 style="color:#075e54;margin-top:20px;">Top Clientes (aprovados)</h3>
             <table style="width:100%;border-collapse:collapse;">
                 ${d.top_clientes.map((c, i) =>
                     `<tr><td style="padding:6px;border-bottom:1px solid #eee;">${i+1}. ${c.cliente}</td>
@@ -2103,7 +2179,8 @@ CREATE TABLE movimentacoes_estoque (
             if (json.status !== 'sucesso') return;
 
             const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-            document.getElementById('dashOrcMes').textContent     = json.total_mes;
+
+            // Receita aprovada + despesas + saldo real
             document.getElementById('dashReceitaMes').textContent  = fmt(json.receita_mes);
             document.getElementById('dashDespesasMes').textContent = fmt(json.despesas_mes);
             const saldo = json.receita_mes - json.despesas_mes;
@@ -2111,6 +2188,14 @@ CREATE TABLE movimentacoes_estoque (
             saldoEl.textContent = fmt(saldo);
             saldoEl.style.color = saldo >= 0 ? '#075e54' : '#dc3545';
 
+            // Funil
+            document.getElementById('dashOrcMes').textContent       = json.total_mes;
+            document.getElementById('dashAprovadosMes').textContent  = json.aprovados_mes;
+            document.getElementById('dashPendentesMes').textContent  = json.pendentes_mes;
+            document.getElementById('dashRecusadosMes').textContent  = json.recusados_mes;
+            document.getElementById('dashValPendentes').textContent  = fmt(json.pendentes_valor_mes);
+
+            // Totais gerais
             document.getElementById('dashTotalOrc').textContent     = json.total_geral;
             document.getElementById('dashReceitaTotal').textContent  = fmt(json.receita_total);
 
