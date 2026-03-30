@@ -963,6 +963,52 @@
         </div>
     </div>
 
+    <!-- 12. TELA VISÃO DA EMPRESA -->
+    <div id="telaVisaoEmpresa" class="card" style="display:none;">
+        <h2>🏭 Visão da Empresa</h2>
+
+        <!-- Filtros de período -->
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;flex-wrap:wrap;">
+            <select id="veMonth" style="flex:1;min-width:90px;"></select>
+            <select id="veYear"  style="flex:1;min-width:70px;"></select>
+            <button class="btn-filtrar" onclick="carregarVisaoEmpresa()">🔍</button>
+        </div>
+
+        <!-- Filtro por funcionário -->
+        <div style="margin-bottom:12px;">
+            <select id="veFuncFiltro" onchange="carregarVisaoEmpresa()" style="width:100%;">
+                <option value="0">👥 Todos os funcionários</option>
+            </select>
+        </div>
+
+        <!-- Cards consolidados -->
+        <div class="fin-grid" style="margin-bottom:12px;">
+            <div class="fin-card" style="background:#f0fff4;">
+                <div class="fin-numero" style="color:#25d366;font-size:18px;" id="veReceita">R$ 0</div>
+                <div class="fin-label">Receita aprovada</div>
+            </div>
+            <div class="fin-card" style="background:#fff3cd;">
+                <div class="fin-numero" style="color:#856404;font-size:18px;" id="vePendentes">0</div>
+                <div class="fin-label">Pendentes</div>
+            </div>
+            <div class="fin-card" style="background:#f8d7da;">
+                <div class="fin-numero" style="color:#842029;font-size:18px;" id="veRecusados">0</div>
+                <div class="fin-label">Recusados</div>
+            </div>
+            <div class="fin-card" style="background:#f0f7ff;">
+                <div class="fin-numero" style="color:#075e54;font-size:18px;" id="veAprovados">0</div>
+                <div class="fin-label">Aprovados</div>
+            </div>
+        </div>
+
+        <!-- Resumo por funcionário -->
+        <div id="veResumoFuncionarios" style="margin-bottom:16px;"></div>
+
+        <!-- Lista de orçamentos -->
+        <p style="font-weight:bold;color:#075e54;margin:0 0 8px;font-size:13px;">📋 Orçamentos do período</p>
+        <div id="veListaOrcamentos"></div>
+    </div>
+
     <!-- OVERLAY MAIS -->
     <div id="overlayMais" onclick="fecharMais()">
         <div class="mais-menu" onclick="event.stopPropagation()">
@@ -972,6 +1018,7 @@
             <button class="mais-btn" onclick="fecharMais();abrirEmpresa()"><span>🏢</span> Minha Empresa</button>
             <button class="mais-btn" onclick="fecharMais();abrirProdutos()"><span>🗂️</span> Catálogo de Produtos</button>
             <button class="mais-btn" onclick="fecharMais();verHistorico()"><span>📋</span> Histórico de Orçamentos</button>
+            <button class="mais-btn" id="btnVisaoEmpresa" style="display:none;" onclick="fecharMais();abrirVisaoEmpresa()"><span>🏭</span> Visão da Empresa</button>
             <button class="mais-btn" onclick="fecharMais();fazerLogout()" style="color:#dc3545;"><span>🚪</span> Sair do Sistema</button>
         </div>
     </div>
@@ -1004,7 +1051,7 @@
 
     function alternarTelas(qual) {
         ['telaLogin','telaCadastro','telaPrincipal','telaHistorico','telaEmpresa','telaProdutos',
-         'telaDashboard','telaClientes','telaFinanceiro','telaRelatorios','telaEstoque'].forEach(id => {
+         'telaDashboard','telaClientes','telaFinanceiro','telaRelatorios','telaEstoque','telaVisaoEmpresa'].forEach(id => {
             document.getElementById(id).style.display = 'none';
         });
 
@@ -1021,7 +1068,8 @@
         if(qual === 'clientes')   document.getElementById('telaClientes').style.display = 'block';
         if(qual === 'financeiro')  document.getElementById('telaFinanceiro').style.display = 'block';
         if(qual === 'relatorios') document.getElementById('telaRelatorios').style.display = 'block';
-        if(qual === 'estoque')    document.getElementById('telaEstoque').style.display = 'block';
+        if(qual === 'estoque')      document.getElementById('telaEstoque').style.display = 'block';
+        if(qual === 'visaoempresa') document.getElementById('telaVisaoEmpresa').style.display = 'block';
 
         ['navInicio','navDashboard','navClientes','navFinanceiro','navMais'].forEach(id => {
             document.getElementById(id).classList.remove('ativo');
@@ -1171,6 +1219,11 @@
 
         const usuario_id = localStorage.getItem('usuario_id');
         if(!usuario_id) return;
+
+        // Mostra botão "Visão da Empresa" só para dono/gerente com equipe
+        const papel = localStorage.getItem('usuario_papel') || 'dono';
+        const btnVE = document.getElementById('btnVisaoEmpresa');
+        if (btnVE) btnVE.style.display = ['dono','gerente'].includes(papel) ? 'flex' : 'none';
 
         // Carrega clientes em background para o autocomplete da tela principal
         const dadosCli = new FormData();
@@ -1923,6 +1976,130 @@ CREATE TABLE movimentacoes_estoque (
         }).save();
     }
     // ---- FIM RELATÓRIOS ----
+
+    // ---- VISÃO DA EMPRESA ----
+    function abrirVisaoEmpresa() {
+        alternarTelas('visaoempresa');
+        const papel = localStorage.getItem('usuario_papel') || 'dono';
+        if (!['dono','gerente'].includes(papel)) {
+            alert('Acesso restrito ao dono ou gerente.');
+            alternarTelas('principal');
+            return;
+        }
+
+        // Preenche seletor de meses/anos
+        const meses = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        const selM = document.getElementById('veMonth');
+        const selY = document.getElementById('veYear');
+        if (selM.options.length === 0) {
+            meses.slice(1).forEach((m, i) => {
+                const o = document.createElement('option');
+                o.value = i + 1; o.textContent = m;
+                selM.appendChild(o);
+            });
+            selM.value = new Date().getMonth() + 1;
+        }
+        if (selY.options.length === 0) {
+            const anoAtual = new Date().getFullYear();
+            for (let a = anoAtual; a >= anoAtual - 3; a--) {
+                const o = document.createElement('option');
+                o.value = a; o.textContent = a;
+                selY.appendChild(o);
+            }
+            selY.value = anoAtual;
+        }
+
+        carregarVisaoEmpresa();
+    }
+
+    async function carregarVisaoEmpresa() {
+        const usuario_id = localStorage.getItem('usuario_id');
+        const empresa_id = localStorage.getItem('empresa_id');
+        const filtro_uid = document.getElementById('veFuncFiltro')?.value || 0;
+        const mes        = document.getElementById('veMonth')?.value || new Date().getMonth() + 1;
+        const ano        = document.getElementById('veYear')?.value  || new Date().getFullYear();
+        if (!usuario_id || !empresa_id) return;
+
+        const fd = new FormData();
+        fd.append('usuario_id',  usuario_id);
+        fd.append('empresa_id',  empresa_id);
+        fd.append('filtro_uid',  filtro_uid);
+        fd.append('modo',        'mes');
+        fd.append('mes',         mes);
+        fd.append('ano',         ano);
+
+        try {
+            const res  = await fetch(`${SERVER_URL}/buscar_visao_empresa.php`, { method:'POST', body:fd });
+            const json = await res.json();
+            if (json.status !== 'sucesso') return;
+
+            const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+            // Cards consolidados
+            document.getElementById('veReceita').textContent   = fmt(json.receita_total);
+            document.getElementById('veAprovados').textContent = json.total_aprov;
+            document.getElementById('vePendentes').textContent = json.total_pend;
+            document.getElementById('veRecusados').textContent = json.total_recus;
+
+            // Popula filtro de funcionários (só na primeira carga)
+            const sel = document.getElementById('veFuncFiltro');
+            if (sel.options.length <= 1) {
+                json.membros.forEach(m => {
+                    const o = document.createElement('option');
+                    o.value = m.id; o.textContent = '👤 ' + m.nome_completo;
+                    sel.appendChild(o);
+                });
+            }
+
+            // Resumo por funcionário
+            const resumoEl = document.getElementById('veResumoFuncionarios');
+            if (json.resumo.length === 0) {
+                resumoEl.innerHTML = '';
+            } else {
+                resumoEl.innerHTML = `
+                <p style="font-weight:bold;color:#075e54;margin:0 0 8px;font-size:13px;">📊 Por funcionário</p>
+                ${json.resumo.map(r => `
+                    <div style="background:#f9f9f9;border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:3px solid #25d366;">
+                        <div style="font-weight:bold;font-size:13px;color:#333;margin-bottom:6px;">👤 ${r.nome}</div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;">
+                            <span style="background:#f0fff4;color:#198754;padding:3px 8px;border-radius:10px;">${r.aprovados} aprovados — ${fmt(r.receita)}</span>
+                            <span style="background:#fff3cd;color:#856404;padding:3px 8px;border-radius:10px;">${r.pendentes} pendentes</span>
+                            <span style="background:#f8d7da;color:#842029;padding:3px 8px;border-radius:10px;">${r.recusados} recusados</span>
+                        </div>
+                    </div>`).join('')}`;
+            }
+
+            // Lista de orçamentos
+            const listaEl = document.getElementById('veListaOrcamentos');
+            if (json.orcamentos.length === 0) {
+                listaEl.innerHTML = '<p style="color:#999;font-size:12px;text-align:center;">Nenhum orçamento neste período.</p>';
+            } else {
+                const STATUS_LABEL = { aprovado:'✅ Aprovado', enviado:'📤 Enviado', recusado:'❌ Recusado', expirado:'⏱ Expirado' };
+                const STATUS_COLOR = { aprovado:'#198754', enviado:'#856404', recusado:'#842029', expirado:'#6c757d' };
+                listaEl.innerHTML = json.orcamentos.map(o => {
+                    const st = o.status || 'enviado';
+                    const itensStr = (o.itens || []).map(i => i.desc).filter(Boolean).join(', ');
+                    return `<div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
+                            <div>
+                                <div style="font-weight:bold;font-size:13px;color:#333;">${o.cliente}</div>
+                                <div style="font-size:11px;color:#888;margin-top:2px;">👤 ${o.funcionario}</div>
+                                ${itensStr ? `<div style="font-size:11px;color:#666;margin-top:3px;">${itensStr}</div>` : ''}
+                            </div>
+                            <div style="text-align:right;white-space:nowrap;">
+                                <div style="font-weight:bold;color:#25d366;font-size:13px;">R$ ${Number(o.total).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+                                <div style="font-size:11px;color:${STATUS_COLOR[st]};">${STATUS_LABEL[st] || st}</div>
+                                <div style="font-size:10px;color:#aaa;">${o.criado_em}</div>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+        } catch(e) {
+            document.getElementById('veListaOrcamentos').innerHTML = '<p style="color:#dc3545;text-align:center;font-size:12px;">Erro ao carregar dados.</p>';
+        }
+    }
+    // ---- FIM VISÃO DA EMPRESA ----
 
     // ---- BUSCA: CATÁLOGO DE PRODUTOS ----
     function filtrarProdutos() {
