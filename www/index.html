@@ -530,7 +530,7 @@
             </div>
         </div>
 
-        <button onclick="mostrarFormProduto()" class="btn-salvar" style="background:#25d366;padding:12px;margin-bottom:10px;">+ NOVO PRODUTO/SERVIÇO</button>
+        <button id="btnNovoProduto" onclick="mostrarFormProduto()" class="btn-salvar" style="background:#25d366;padding:12px;margin-bottom:10px;">+ NOVO PRODUTO/SERVIÇO</button>
         <div class="hist-busca-wrap">
             <input type="text" id="prodBusca" class="hist-busca-input"
                 placeholder="🔍 Buscar por nome, descrição ou categoria..."
@@ -1220,10 +1220,21 @@
         const usuario_id = localStorage.getItem('usuario_id');
         if(!usuario_id) return;
 
-        // Mostra botão "Visão da Empresa" só para dono/gerente com equipe
+        // Aplica controles de acesso por papel
         const papel = localStorage.getItem('usuario_papel') || 'dono';
+        const isGestor = ['dono','gerente'].includes(papel);
+
+        // "Visão da Empresa" — só dono/gerente
         const btnVE = document.getElementById('btnVisaoEmpresa');
-        if (btnVE) btnVE.style.display = ['dono','gerente'].includes(papel) ? 'flex' : 'none';
+        if (btnVE) btnVE.style.display = isGestor ? 'flex' : 'none';
+
+        // "Financeiro" no nav inferior — só dono/gerente
+        const navFin = document.getElementById('navFinanceiro');
+        if (navFin) navFin.style.display = isGestor ? 'flex' : 'none';
+
+        // "Minha Empresa" no menu Mais — só dono/gerente
+        const btnEmpresa = document.querySelector('.mais-btn[onclick*="abrirEmpresa"]');
+        if (btnEmpresa) btnEmpresa.style.display = isGestor ? 'flex' : 'none';
 
         // Carrega clientes em background para o autocomplete da tela principal
         const dadosCli = new FormData();
@@ -1249,9 +1260,13 @@
 
 
     async function abrirEmpresa() {
+        const papel = localStorage.getItem('usuario_papel') || 'dono';
+        if (!['dono','gerente'].includes(papel)) {
+            alert('⛔ Acesso restrito. Somente o dono ou gerente pode acessar esta área.');
+            return;
+        }
         alternarTelas('empresa');
         const usuario_id = localStorage.getItem('usuario_id');
-        const papel      = localStorage.getItem('usuario_papel') || 'dono';
         if(!usuario_id) return;
 
         // Mostra bloco correto conforme papel
@@ -2667,6 +2682,10 @@ CREATE TABLE movimentacoes_estoque (
 
     // ---- FINANCEIRO ----
     async function abrirFinanceiro() {
+        if (!['dono','gerente'].includes(localStorage.getItem('usuario_papel') || 'dono')) {
+            alert('⛔ Acesso restrito. Somente o dono ou gerente pode acessar o Financeiro.');
+            return;
+        }
         alternarTelas('financeiro');
         fecharFormDespesa();
         document.getElementById('despData').value = new Date().toISOString().split('T')[0];
@@ -2790,6 +2809,12 @@ CREATE TABLE movimentacoes_estoque (
         document.getElementById('prodBusca').value = '';
         document.getElementById('prodBuscaClear').style.display = 'none';
         document.getElementById('prodResumo').textContent = '';
+
+        // Colaboradores só consultam — esconde botão de novo produto
+        const isGestor = ['dono','gerente'].includes(localStorage.getItem('usuario_papel') || 'dono');
+        const btnNovoProd = document.getElementById('btnNovoProduto');
+        if (btnNovoProd) btnNovoProd.style.display = isGestor ? '' : 'none';
+
         await carregarProdutos();
     }
 
@@ -2816,6 +2841,7 @@ CREATE TABLE movimentacoes_estoque (
             lista.innerHTML = '<p style="color:#999;text-align:center;margin-top:20px;">Nenhum item no catálogo ainda.<br>Clique em "+ NOVO" para começar.</p>';
             return;
         }
+        const isGestor = ['dono','gerente'].includes(localStorage.getItem('usuario_papel') || 'dono');
         const categorias = { servico: '🔧 Serviços', produto: '📦 Produtos' };
         let html = '';
         ['servico','produto'].forEach(cat => {
@@ -2830,10 +2856,10 @@ CREATE TABLE movimentacoes_estoque (
                             <div class="produto-nome">${p.nome}</div>
                             <div class="produto-detalhe">R$ ${precoStr} / ${p.unidade}${p.descricao ? ' — ' + p.descricao : ''}</div>
                         </div>
-                        <div class="produto-acoes">
+                        ${isGestor ? `<div class="produto-acoes">
                             <button class="btn-editar" onclick="editarProduto(${p.id})">✏️</button>
                             <button class="btn-excluir" onclick="confirmarExcluir(${p.id}, '${p.nome.replace(/'/g,"\\'")}')">🗑️</button>
-                        </div>
+                        </div>` : ''}
                     </div>`;
             });
         });
