@@ -3450,7 +3450,7 @@ CREATE TABLE movimentacoes_estoque (
         const emp = (() => {
             try { return JSON.parse(localStorage.getItem('empresa_dados') || '{}'); } catch(e) { return {}; }
         })();
-        const nomeEmp   = emp.nome_fantasia || localStorage.getItem('empresa') || '';
+        const nomeEmp   = emp.nome_fantasia || localStorage.getItem('empresa') || localStorage.getItem('usuario_nome') || '';
         const cnpjEmp   = emp.cnpj_cpf  || '';
         const zapEmp    = emp.whatsapp ? emp.whatsapp.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3') : (localStorage.getItem('zap') || '');
         const emailEmp  = emp.email || '';
@@ -3515,16 +3515,16 @@ CREATE TABLE movimentacoes_estoque (
     .no-print { display: none; }
     @page { margin: 1.5cm; size: A4; }
   }
-  .btn-print {
-    display: block; margin: 20px auto; padding: 12px 32px;
-    background: #075e54; color: #fff; border: none; border-radius: 8px;
-    font-size: 15px; font-weight: 700; cursor: pointer; font-family: Arial;
+  .reimprimir {
+    display: none; text-align: center; padding: 10px;
+    font-family: Arial; font-size: 12px; color: #075e54;
+    text-decoration: underline; cursor: pointer;
   }
 </style>
 </head>
 <body>
 
-<button class="btn-print no-print" onclick="window.print()">🖨️ Imprimir / Salvar como PDF</button>
+<p class="reimprimir no-print" onclick="window.print()">↩ Reimprimir / Salvar novamente como PDF</p>
 
 <table style="max-width:700px;margin:0 auto;background:#fff;">
 
@@ -3629,7 +3629,15 @@ CREATE TABLE movimentacoes_estoque (
         janela.document.write(htmlCompleto);
         janela.document.close();
         // Aguarda imagens carregarem antes de abrir o print
-        janela.onload = () => setTimeout(() => janela.print(), 400);
+        janela.onload = () => {
+            setTimeout(() => {
+                janela.print();
+                janela.onafterprint = () => {
+                    const el = janela.document.querySelector('.reimprimir');
+                    if (el) el.style.display = 'block';
+                };
+            }, 400);
+        };
     }
 
     async function salvarNoHistorico(cliente, itens, total, tipo) {
