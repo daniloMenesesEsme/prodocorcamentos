@@ -2989,7 +2989,7 @@ CREATE TABLE movimentacoes_estoque (
                 lista.innerHTML = json.produtos.map(p => {
                     const precoStr = Number(p.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
                     return `
-                        <div class="catalogo-item" onclick="selecionarDoCatalogo('${p.nome.replace(/'/g,"\\'")}', ${p.preco})">
+                        <div class="catalogo-item" onclick="selecionarDoCatalogo('${p.nome.replace(/'/g,"\\'")}', ${p.preco}, ${p.id}, '${p.categoria}')">
                             <div>
                                 <div style="font-weight:bold;color:#075e54;">${p.nome}</div>
                                 <div style="font-size:12px;color:#888;">${p.descricao || ''}</div>
@@ -3004,21 +3004,23 @@ CREATE TABLE movimentacoes_estoque (
         document.getElementById('overlayCatalogo').style.display = 'block';
     }
 
-    function selecionarDoCatalogo(nome, preco) {
+    function selecionarDoCatalogo(nome, preco, produto_id = '', categoria = '') {
         const lista = document.getElementById('listaItens');
-        // Se só tem um item vazio, substitui; senão adiciona
         const itensAtuais = lista.querySelectorAll('.item-orcamento');
         const ultimo = itensAtuais[itensAtuais.length - 1];
         const ultimoDesc  = ultimo?.querySelector('.item-desc')?.value.trim();
         const ultimoValor = ultimo?.querySelector('.item-valor')?.value;
-        if (itensAtuais.length === 1 && !ultimoDesc && !ultimoValor) {
+        // Se só tem um item vazio E não é produto de catálogo, substitui
+        if (itensAtuais.length === 1 && !ultimoDesc && !ultimoValor && !ultimo.dataset.produtoId) {
             ultimo.querySelector('.item-desc').value  = nome;
             ultimo.querySelector('.item-valor').value = preco;
+            ultimo.dataset.produtoId = produto_id;
+            ultimo.dataset.categoria = categoria;
             calcularTotal();
             fecharCatalogo();
             return;
         }
-        const div = criarItemDOM(nome, 1, preco);
+        const div = criarItemDOM(nome, 1, preco, '', produto_id, categoria);
         lista.appendChild(div);
         calcularTotal();
         fecharCatalogo();
@@ -3029,9 +3031,11 @@ CREATE TABLE movimentacoes_estoque (
     }
     // ---- FIM PRODUTOS E SERVIÇOS ----
 
-    function criarItemDOM(desc = '', qtd = 1, valor = '', desconto = '') {
+    function criarItemDOM(desc = '', qtd = 1, valor = '', desconto = '', produto_id = '', categoria = '') {
         const div = document.createElement('div');
         div.className = 'item-orcamento';
+        div.dataset.produtoId  = produto_id;
+        div.dataset.categoria  = categoria;
         div.innerHTML = `
             <div class="item-desc-row">
                 <input type="text" class="item-desc" placeholder="Descrição do serviço/item" value="${desc}">
@@ -3100,12 +3104,14 @@ CREATE TABLE movimentacoes_estoque (
     function obterItens() {
         const itens = [];
         document.querySelectorAll('#listaItens .item-orcamento').forEach(row => {
-            const desc     = row.querySelector('.item-desc').value.trim();
-            const qtd      = parseFloat(row.querySelector('.item-qtd')?.value)     || 1;
-            const valor    = parseFloat(row.querySelector('.item-valor')?.value)   || 0;
-            const desconto = parseFloat(row.querySelector('.item-desconto')?.value)|| 0;
-            const subtotal = qtd * valor * (1 - desconto / 100);
-            if (desc) itens.push({ desc, qtd, val: valor, desconto, subtotal });
+            const desc       = row.querySelector('.item-desc').value.trim();
+            const qtd        = parseFloat(row.querySelector('.item-qtd')?.value)     || 1;
+            const valor      = parseFloat(row.querySelector('.item-valor')?.value)   || 0;
+            const desconto   = parseFloat(row.querySelector('.item-desconto')?.value)|| 0;
+            const subtotal   = qtd * valor * (1 - desconto / 100);
+            const produto_id = row.dataset.produtoId || '';
+            const categoria  = row.dataset.categoria  || '';
+            if (desc) itens.push({ desc, qtd, val: valor, desconto, subtotal, produto_id, categoria });
         });
         return itens;
     }
