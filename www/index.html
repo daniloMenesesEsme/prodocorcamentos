@@ -3452,10 +3452,9 @@ CREATE TABLE movimentacoes_estoque (
         })();
         const nomeEmp   = emp.nome_fantasia || localStorage.getItem('empresa') || '';
         const cnpjEmp   = emp.cnpj_cpf  || '';
-        const zapEmp    = emp.whatsapp   || localStorage.getItem('zap') || '';
-        const emailEmp  = emp.email      || '';
+        const zapEmp    = emp.whatsapp ? emp.whatsapp.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3') : (localStorage.getItem('zap') || '');
+        const emailEmp  = emp.email || '';
         const cidadeEmp = [emp.cidade, emp.estado].filter(Boolean).join(' - ');
-        const siteEmp   = emp.site || '';
         const logoEmp   = localStorage.getItem('logo_empresa') || '';
 
         const dias = parseInt(document.getElementById('diasValidade').value) || 7;
@@ -3469,154 +3468,162 @@ CREATE TABLE movimentacoes_estoque (
         const fmt         = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         const numOrc      = String(Date.now()).slice(-6);
 
-        // ── Linhas da tabela — usa item.val (campo correto de obterItens)
+        // ── Linhas dos itens — usa item.val (campo correto de obterItens)
         let totalBruto = 0;
         const linhasItens = itens.map((item, idx) => {
             const valorUnit = Number(item.val) || 0;
             totalBruto += item.qtd * valorUnit;
-            const temDesc = item.desconto > 0;
-            const descStr = temDesc ? `<br><span style="font-size:10px;color:#c0392b;">(-${item.desconto}% de desconto)</span>` : '';
-            const bg      = idx % 2 === 0 ? '#ffffff' : '#f7f9f7';
-            const qtdFmt  = Number(item.qtd) % 1 === 0 ? parseInt(item.qtd) : item.qtd;
+            const qtdFmt = Number(item.qtd) % 1 === 0 ? parseInt(item.qtd) : item.qtd;
+            const descStr = item.desconto > 0 ? ` (-${item.desconto}%)` : '';
+            const bg = idx % 2 === 0 ? '#ffffff' : '#f4f8f4';
             return `<tr style="background:${bg};">
-                <td style="padding:9px 14px;border-bottom:1px solid #ebebeb;font-size:12px;color:#222;">${item.desc}${descStr}</td>
-                <td style="padding:9px 10px;border-bottom:1px solid #ebebeb;text-align:center;font-size:12px;color:#555;">${qtdFmt}</td>
-                <td style="padding:9px 10px;border-bottom:1px solid #ebebeb;text-align:right;font-size:12px;color:#555;">${fmt(valorUnit)}</td>
-                <td style="padding:9px 14px;border-bottom:1px solid #ebebeb;text-align:right;font-size:12px;font-weight:700;color:#075e54;">${fmt(item.subtotal)}</td>
+                <td style="padding:8px 14px;border:1px solid #d8e8d8;font-size:12px;color:#222;">${item.desc}${descStr}</td>
+                <td style="padding:8px 10px;border:1px solid #d8e8d8;text-align:center;font-size:12px;color:#444;">${qtdFmt}</td>
+                <td style="padding:8px 10px;border:1px solid #d8e8d8;text-align:right;font-size:12px;color:#444;">${fmt(valorUnit)}</td>
+                <td style="padding:8px 14px;border:1px solid #d8e8d8;text-align:right;font-size:12px;font-weight:700;color:#075e54;">${fmt(item.subtotal)}</td>
             </tr>`;
         }).join('');
 
         const economia = totalBruto - total;
-        const econRow  = economia > 0.009
-            ? `<tr><td colspan="3" style="padding:7px 14px;text-align:right;font-size:11px;color:#c0392b;">Desconto total aplicado</td>
-               <td style="padding:7px 14px;text-align:right;font-size:11px;color:#c0392b;font-weight:700;">- ${fmt(economia)}</td></tr>`
+        const econRow = economia > 0.009
+            ? `<tr style="background:#fff8f0;">
+                <td colspan="3" style="padding:7px 14px;border:1px solid #d8e8d8;text-align:right;font-size:11px;color:#c0392b;">Desconto aplicado</td>
+                <td style="padding:7px 14px;border:1px solid #d8e8d8;text-align:right;font-size:11px;color:#c0392b;font-weight:700;">- ${fmt(economia)}</td>
+               </tr>`
             : '';
 
-        const logoCell = logoEmp
-            ? `<td style="width:64px;padding:18px 0 18px 28px;vertical-align:middle;">
-                   <img src="${logoEmp}" style="width:52px;height:52px;object-fit:contain;border-radius:6px;display:block;">
-               </td>`
-            : '';
+        // ── Contato compacto
+        const contatoInfo = [cnpjEmp ? 'CNPJ: '+cnpjEmp : '', zapEmp, emailEmp, cidadeEmp].filter(Boolean).join('   |   ');
 
-        const contatos = [
-            cnpjEmp  ? 'CNPJ/CPF: ' + cnpjEmp                                              : '',
-            zapEmp   ? zapEmp.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3')           : '',
-            emailEmp || '',
-            cidadeEmp || '',
-            siteEmp  || '',
-        ].filter(Boolean).join('  ·  ');
+        // ── Logo tag (usada como célula)
+        const logoHtml = logoEmp ? `<img src="${logoEmp}" style="height:44px;width:auto;display:block;border-radius:4px;">` : '';
 
+        // ── Monta o HTML como UMA ÚNICA TABLE flat (sem aninhamento)
         const elementoParaPDF = document.createElement('div');
+        elementoParaPDF.style.cssText = 'width:640px;margin:0;padding:0;font-family:Arial,sans-serif;background:#fff;';
+
         elementoParaPDF.innerHTML = `
-        <div style="font-family:Arial,Helvetica,sans-serif;width:680px;color:#222;background:#ffffff;">
+        <table cellpadding="0" cellspacing="0" style="width:640px;border-collapse:collapse;font-family:Arial,sans-serif;background:#fff;">
 
-            <!-- TOPO: barra verde com número e data -->
-            <table style="width:100%;border-collapse:collapse;background:#075e54;">
-                <tr>
-                    <td style="padding:9px 28px;font-size:11px;font-weight:700;color:#a8d8cb;letter-spacing:2px;text-transform:uppercase;">
-                        Proposta Comercial
+            <!-- ROW 1: Barra topo verde -->
+            <tr style="background:#075e54;">
+                <td style="padding:10px 18px;font-size:10px;font-weight:700;color:#a8d8cb;letter-spacing:2px;text-transform:uppercase;" colspan="2">
+                    Proposta Comercial
+                </td>
+                <td style="padding:10px 18px;text-align:right;font-size:12px;font-weight:700;color:#25d366;" colspan="2">
+                    Nº ${numOrc} &nbsp; <span style="font-size:10px;color:#a8d8cb;font-weight:400;">${hojeStr}</span>
+                </td>
+            </tr>
+
+            <!-- ROW 2: Logo + Nome empresa + Validade -->
+            <tr style="border-bottom:2px solid #075e54;background:#fff;">
+                ${logoEmp ? `<td style="padding:14px 10px 14px 18px;width:56px;vertical-align:middle;">${logoHtml}</td>` : ''}
+                <td style="padding:14px 10px;vertical-align:middle;" colspan="${logoEmp ? 2 : 3}">
+                    <div style="font-size:16px;font-weight:800;color:#075e54;">${nomeEmp}</div>
+                    ${contatoInfo ? `<div style="font-size:10px;color:#999;margin-top:3px;">${contatoInfo}</div>` : ''}
+                </td>
+                <td style="padding:14px 18px;text-align:right;vertical-align:middle;width:110px;">
+                    <div style="font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:1px;">Válida até</div>
+                    <div style="font-size:14px;font-weight:800;color:#856404;margin-top:2px;">${validadeStr}</div>
+                </td>
+            </tr>
+
+            <!-- ROW 3: De / Para -->
+            <tr style="background:#f5f8f5;border-bottom:1px solid #dce8dc;">
+                <td style="padding:10px 18px;font-size:10px;vertical-align:top;" colspan="2">
+                    <div style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">De</div>
+                    <div style="font-size:13px;font-weight:600;color:#333;">${nomeEmp || '—'}</div>
+                </td>
+                <td style="padding:10px 18px;font-size:10px;vertical-align:top;border-left:1px solid #dce8dc;" colspan="2">
+                    <div style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Para</div>
+                    <div style="font-size:13px;font-weight:600;color:#333;">${cliente}</div>
+                </td>
+            </tr>
+
+            <!-- ROW 4: Cabeçalho tabela de itens -->
+            <tr style="background:#075e54;">
+                <td style="padding:8px 14px;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;" colspan="2">Descrição</td>
+                <td style="padding:8px 10px;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;text-align:center;width:50px;">Qtd</td>
+                <td style="padding:8px 14px;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;text-align:right;" colspan="">Unit. / Total</td>
+            </tr>
+            <!-- Itens -->
+            ${itens.map((item, idx) => {
+                const valorUnit = Number(item.val) || 0;
+                const qtdFmt = Number(item.qtd) % 1 === 0 ? parseInt(item.qtd) : item.qtd;
+                const descStr = item.desconto > 0 ? ` <span style="color:#c0392b;font-size:10px;">(-${item.desconto}%)</span>` : '';
+                const bg = idx % 2 === 0 ? '#ffffff' : '#f4f8f4';
+                return `<tr style="background:${bg};">
+                    <td style="padding:9px 14px;border-bottom:1px solid #d8e8d8;font-size:12px;color:#222;" colspan="2">${item.desc}${descStr}</td>
+                    <td style="padding:9px 10px;border-bottom:1px solid #d8e8d8;text-align:center;font-size:12px;color:#555;width:50px;">${qtdFmt}</td>
+                    <td style="padding:9px 14px;border-bottom:1px solid #d8e8d8;text-align:right;font-size:12px;color:#555;">
+                        <span style="color:#888;">${fmt(valorUnit)}</span>
+                        &nbsp;→&nbsp;
+                        <strong style="color:#075e54;">${fmt(item.subtotal)}</strong>
                     </td>
-                    <td style="padding:9px 28px;text-align:right;">
-                        <span style="font-size:13px;font-weight:700;color:#25d366;">Nº ${numOrc}</span>
-                        &nbsp;&nbsp;
-                        <span style="font-size:11px;color:#a8d8cb;">${hojeStr}</span>
-                    </td>
-                </tr>
-            </table>
+                </tr>`;
+            }).join('')}
 
-            <!-- CABEÇALHO: logo + empresa | validade -->
-            <table style="width:100%;border-collapse:collapse;border-bottom:2px solid #075e54;">
-                <tr>
-                    ${logoCell}
-                    <td style="padding:18px 16px 18px 28px;vertical-align:middle;">
-                        <div style="font-size:18px;font-weight:800;color:#075e54;">${nomeEmp}</div>
-                        ${contatos ? `<div style="font-size:10px;color:#999;margin-top:4px;">${contatos}</div>` : ''}
-                    </td>
-                    <td style="padding:18px 28px 18px 16px;text-align:right;vertical-align:middle;white-space:nowrap;">
-                        <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:1px;">Válida até</div>
-                        <div style="font-size:15px;font-weight:800;color:#856404;margin-top:3px;">${validadeStr}</div>
-                    </td>
-                </tr>
-            </table>
+            <!-- Desconto (se houver) -->
+            ${economia > 0.009 ? `<tr style="background:#fff8f0;">
+                <td colspan="3" style="padding:7px 14px;text-align:right;font-size:11px;color:#c0392b;border-bottom:1px solid #d8e8d8;">Desconto total aplicado</td>
+                <td style="padding:7px 14px;text-align:right;font-size:11px;color:#c0392b;font-weight:700;border-bottom:1px solid #d8e8d8;">- ${fmt(economia)}</td>
+            </tr>` : ''}
 
-            <!-- DE / PARA -->
-            <table style="width:100%;border-collapse:collapse;background:#f7f9f7;border-bottom:1px solid #e4e4e4;">
-                <tr>
-                    ${nomeEmp ? `<td style="padding:12px 28px;width:50%;vertical-align:top;border-right:1px solid #e4e4e4;">
-                        <div style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">De</div>
-                        <div style="font-size:13px;font-weight:600;color:#333;">${nomeEmp}</div>
-                    </td>` : '<td style="width:50%;"></td>'}
-                    <td style="padding:12px 28px;width:50%;vertical-align:top;">
-                        <div style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Para</div>
-                        <div style="font-size:13px;font-weight:600;color:#333;">${cliente}</div>
-                    </td>
-                </tr>
-            </table>
+            <!-- ROW TOTAL -->
+            <tr style="background:#e8f5e9;border-top:2px solid #075e54;border-bottom:2px solid #075e54;">
+                <td colspan="3" style="padding:12px 14px;text-align:right;font-size:13px;font-weight:700;color:#333;">TOTAL GERAL</td>
+                <td style="padding:12px 14px;text-align:right;font-size:18px;font-weight:800;color:#075e54;">R$ ${totalStr}</td>
+            </tr>
 
-            <!-- TABELA DE ITENS -->
-            <table style="width:100%;border-collapse:collapse;">
-                <thead>
-                    <tr style="background:#f0f0f0;">
-                        <th style="padding:9px 14px;text-align:left;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #ddd;">Descrição</th>
-                        <th style="padding:9px 10px;text-align:center;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #ddd;white-space:nowrap;">Qtd</th>
-                        <th style="padding:9px 10px;text-align:right;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #ddd;white-space:nowrap;">Unit.</th>
-                        <th style="padding:9px 14px;text-align:right;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #ddd;white-space:nowrap;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>${linhasItens}</tbody>
-                <tfoot>
-                    ${econRow}
-                    <tr style="background:#f2fff6;border-top:2px solid #075e54;">
-                        <td colspan="3" style="padding:13px 14px;text-align:right;font-size:13px;font-weight:700;color:#444;">TOTAL</td>
-                        <td style="padding:13px 14px;text-align:right;font-size:18px;font-weight:800;color:#075e54;white-space:nowrap;">R$ ${totalStr}</td>
-                    </tr>
-                </tfoot>
-            </table>
+            <!-- ROW OBSERVAÇÕES (condicional) -->
+            ${obsP ? `<tr style="background:#fffbee;border-bottom:1px solid #e8e8d0;">
+                <td colspan="4" style="padding:10px 18px;font-size:11px;color:#555;">
+                    <span style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;">Observações: </span>${obsP}
+                </td>
+            </tr>` : ''}
 
-            <!-- OBSERVAÇÕES (se houver) -->
-            ${obsP ? `<table style="width:100%;border-collapse:collapse;background:#fffdf0;border-top:1px solid #ebebeb;">
-                <tr><td style="padding:12px 28px;">
-                    <div style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Observações</div>
-                    <div style="font-size:12px;color:#555;line-height:1.6;">${obsP}</div>
-                </td></tr>
-            </table>` : ''}
+            <!-- ROW ESPAÇO -->
+            <tr><td colspan="4" style="padding:16px;"></td></tr>
 
-            <!-- ACEITE -->
-            <table style="width:100%;border-collapse:collapse;border-top:1px solid #e4e4e4;">
-                <tr>
-                    <td style="padding:22px 28px 18px;">
-                        <div style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:20px;">Aprovação da Proposta</div>
-                        <table style="width:100%;border-collapse:collapse;">
-                            <tr>
-                                <td style="width:44%;padding-right:12px;">
-                                    <div style="border-top:1px solid #ccc;padding-top:5px;text-align:center;font-size:10px;color:#999;">Assinatura do Cliente — ${cliente}</div>
-                                </td>
-                                <td style="width:12%;"></td>
-                                <td style="width:44%;padding-left:12px;">
-                                    <div style="border-top:1px solid #ccc;padding-top:5px;text-align:center;font-size:10px;color:#999;">Data:  ___ / ___ / ______</div>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
+            <!-- ROW ACEITE -->
+            <tr style="background:#f9f9f9;border-top:1px solid #e0e0e0;">
+                <td colspan="4" style="padding:10px 18px 4px;">
+                    <span style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;">Aprovação da Proposta</span>
+                </td>
+            </tr>
+            <tr style="background:#f9f9f9;">
+                <td colspan="2" style="padding:4px 18px 18px;vertical-align:bottom;width:50%;">
+                    <div style="border-top:1px solid #bbb;padding-top:4px;text-align:center;font-size:10px;color:#999;">Assinatura do cliente — ${cliente}</div>
+                </td>
+                <td colspan="2" style="padding:4px 18px 18px;vertical-align:bottom;width:50%;">
+                    <div style="border-top:1px solid #bbb;padding-top:4px;text-align:center;font-size:10px;color:#999;">Data: ___ / ___ / ______</div>
+                </td>
+            </tr>
 
-            <!-- RODAPÉ -->
-            <table style="width:100%;border-collapse:collapse;background:#f4f4f4;border-top:1px solid #e0e0e0;">
-                <tr>
-                    <td style="padding:8px 28px;font-size:10px;color:#aaa;">Gerado por <strong style="color:#075e54;">ProDoc Orçamentos</strong></td>
-                    <td style="padding:8px 28px;text-align:right;font-size:10px;color:#ccc;">${hojeStr}</td>
-                </tr>
-            </table>
+            <!-- ROW RODAPÉ -->
+            <tr style="background:#eeeeee;border-top:1px solid #ddd;">
+                <td colspan="2" style="padding:7px 18px;font-size:10px;color:#aaa;">
+                    Gerado por <strong style="color:#075e54;">ProDoc Orçamentos</strong>
+                </td>
+                <td colspan="2" style="padding:7px 18px;text-align:right;font-size:10px;color:#bbb;">${hojeStr}</td>
+            </tr>
 
-        </div>`;
+        </table>`;
+
+        // Insere no DOM temporariamente para html2canvas capturar corretamente
+        elementoParaPDF.style.position = 'absolute';
+        elementoParaPDF.style.left = '-9999px';
+        elementoParaPDF.style.top = '0';
+        document.body.appendChild(elementoParaPDF);
 
         html2pdf().from(elementoParaPDF).set({
-            margin: [0.4, 0.5, 0.4, 0.5],
+            margin: [0.3, 0.3, 0.3, 0.3],
             filename: `Proposta_${cliente.replace(/\s+/g,'_')}_${numOrc}.pdf`,
-            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, windowWidth: 700 },
             jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-        }).save();
+        }).save().then(() => {
+            document.body.removeChild(elementoParaPDF);
+        });
         salvarNoHistorico(cliente, itens, total, 'pdf');
     }
 
