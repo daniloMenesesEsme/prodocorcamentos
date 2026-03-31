@@ -246,6 +246,12 @@
         /* Estilo para esconder as telas */
         #telaPrincipal { display: none; }
 
+        /* Logo da Empresa */
+        .logo-emp-preview { display:flex; align-items:center; justify-content:center; background:#f9f9f9; border-radius:10px; border:1.5px dashed #ddd; padding:16px; min-height:80px; margin-bottom:12px; text-align:center; }
+        .logo-emp-preview img { max-width:200px; max-height:120px; object-fit:contain; border-radius:8px; }
+        .btn-remover-logo { width:100%; background:none; border:1.5px solid #dc3545; color:#dc3545; padding:10px; border-radius:10px; font-weight:bold; cursor:pointer; margin-bottom:12px; font-size:14px; transition:background 0.2s; }
+        .btn-remover-logo:active { background:#fff0f0; }
+
         /* ===== DARK MODE ===== */
         body.dark { background: #1a1a2e; color: #e0e0e0; }
         body.dark .card { background: #16213e; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
@@ -321,6 +327,8 @@
         body.dark .btn-filtrar { background: #4ecca3; color: #16213e; }
         body.dark p { color: #aaa; }
         body.dark hr { border-top-color: #2a4a7f; }
+        body.dark .logo-emp-preview { background: #0f3460; border-color: #2a4a7f; }
+        body.dark .btn-remover-logo { border-color: #dc3545; color: #ff6b6b; }
         /* ===== FIM DARK MODE ===== */
     </style>
 </head>
@@ -379,6 +387,9 @@
         <div class="card">
             <img src="logo.png" alt="Logo" class="logo-preview">
             <h2>ProDoc Orçamentos</h2>
+            <div id="logoEmpresaHeader" style="display:none;text-align:center;margin:-4px 0 10px;">
+                <img id="logoEmpresaHeaderImg" src="" alt="Logo empresa" style="max-width:180px;max-height:80px;object-fit:contain;border-radius:8px;">
+            </div>
             <p id="infoUsuario" style="text-align: center; font-size: 12px; color: #666; margin: 0 0 14px;"></p>
 
             <!-- Banner de estoque baixo -->
@@ -535,6 +546,21 @@
         <input type="url" id="empSite" placeholder="https://seusite.com.br">
 
         <button id="btnSalvarEmpresa" class="btn-salvar" onclick="salvarEmpresa()" style="margin-top:20px;padding:15px;background:#25d366;">SALVAR DADOS DA EMPRESA</button>
+
+        <!-- Logo da Empresa -->
+        <hr style="margin:24px 0 18px;border:0;border-top:1px solid #eee;">
+        <label style="font-weight:bold;color:#075e54;">Logo da Empresa (opcional):</label>
+        <p style="font-size:12px;color:#888;margin:4px 0 10px;">Aparece no cabeçalho do app e nos relatórios PDF.</p>
+        <div class="logo-emp-preview" id="logoEmpresaPreview">
+            <img id="logoEmpresaImg" src="" alt="Logo da empresa" style="display:none;">
+            <span id="logoEmpresaVazio" style="color:#aaa;font-size:12px;">Nenhuma logo cadastrada</span>
+        </div>
+        <input type="file" id="inputLogoEmpresa" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" onchange="previewLogoEmpresa(event)">
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <button class="btn-salvar" onclick="document.getElementById('inputLogoEmpresa').click()" style="flex:1;background:#34b7f1;padding:11px;">📷 Escolher Logo</button>
+            <button id="btnSalvarLogo" class="btn-salvar" onclick="salvarLogoEmpresa()" style="flex:1;display:none;padding:11px;">💾 Salvar Logo</button>
+        </div>
+        <button id="btnRemoverLogo" class="btn-remover-logo" onclick="removerLogoEmpresa()" style="display:none;">🗑️ Remover Logo</button>
 
         <!-- Bloco de equipe — só dono/gerente veem o botão de convidar -->
         <div id="blocoConvite" style="display:none;margin-top:24px;border-top:1px solid #eee;padding-top:18px;">
@@ -1349,6 +1375,9 @@
             document.getElementById('infoUsuario').textContent = `Olá, ${nome} | Licença válida até ${validade}`;
         }
 
+        // Aplica logo da empresa do cache local
+        aplicarLogoEmpresa(localStorage.getItem('logo_empresa') || '');
+
         const usuario_id = localStorage.getItem('usuario_id');
         if(!usuario_id) return;
 
@@ -1435,6 +1464,22 @@
                 document.getElementById('empCidade').value    = e.cidade         || '';
                 document.getElementById('empEstado').value    = e.estado         || '';
                 document.getElementById('empSite').value      = e.site           || '';
+
+                // Carrega logo da empresa
+                const logo = e.logo_empresa || '';
+                localStorage.setItem('logo_empresa', logo);
+                aplicarLogoEmpresa(logo);
+                const imgEl   = document.getElementById('logoEmpresaImg');
+                const vazioEl = document.getElementById('logoEmpresaVazio');
+                const btnRem  = document.getElementById('btnRemoverLogo');
+                if (logo) {
+                    imgEl.src = logo; imgEl.style.display = 'block';
+                    vazioEl.style.display = 'none'; btnRem.style.display = 'block';
+                } else {
+                    imgEl.style.display = 'none';
+                    vazioEl.style.display = 'block'; btnRem.style.display = 'none';
+                }
+                document.getElementById('btnSalvarLogo').style.display = 'none';
             }
         } catch(e) { /* Falha silenciosa */ }
     }
@@ -2047,6 +2092,98 @@ CREATE TABLE movimentacoes_estoque (
         }
     }
 
+    function aplicarLogoEmpresa(base64) {
+        const hdr = document.getElementById('logoEmpresaHeader');
+        const img = document.getElementById('logoEmpresaHeaderImg');
+        if (!hdr || !img) return;
+        if (base64) { img.src = base64; hdr.style.display = 'block'; }
+        else         { hdr.style.display = 'none'; }
+    }
+
+    function resizarImagemBase64(dataUrl, maxW, maxH, callback) {
+        const img = new Image();
+        img.onload = function() {
+            let w = img.width, h = img.height;
+            if (w > maxW || h > maxH) {
+                const ratio = Math.min(maxW / w, maxH / h);
+                w = Math.round(w * ratio); h = Math.round(h * ratio);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            callback(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = dataUrl;
+    }
+
+    function previewLogoEmpresa(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { alert('Imagem muito grande. Máximo 5MB.'); return; }
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            resizarImagemBase64(ev.target.result, 400, 200, function(base64) {
+                const imgEl   = document.getElementById('logoEmpresaImg');
+                const vazioEl = document.getElementById('logoEmpresaVazio');
+                imgEl.src = base64; imgEl.style.display = 'block';
+                vazioEl.style.display = 'none';
+                document.getElementById('btnSalvarLogo').style.display = 'flex';
+                window._logoEmpresaPendente = base64;
+            });
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function salvarLogoEmpresa() {
+        const base64 = window._logoEmpresaPendente;
+        if (!base64) return;
+        const btn = document.getElementById('btnSalvarLogo');
+        btn.textContent = '⏳ Salvando...'; btn.disabled = true;
+        const usuario_id = localStorage.getItem('usuario_id');
+        const fd = new FormData();
+        fd.append('usuario_id', usuario_id);
+        fd.append('logo', base64);
+        try {
+            const res  = await fetch(`${SERVER_URL}/salvar_logo_empresa.php`, { method:'POST', body:fd });
+            const json = await res.json();
+            if (json.status !== 'sucesso') { alert('❌ ' + json.mensagem); return; }
+            localStorage.setItem('logo_empresa', base64);
+            aplicarLogoEmpresa(base64);
+            document.getElementById('btnRemoverLogo').style.display = 'block';
+            btn.style.display = 'none';
+            window._logoEmpresaPendente = null;
+            alert('✅ Logo salva com sucesso!');
+        } catch(e) {
+            alert('❌ Erro ao salvar logo. Verifique a conexão.');
+        } finally {
+            btn.textContent = '💾 Salvar Logo'; btn.disabled = false;
+        }
+    }
+
+    async function removerLogoEmpresa() {
+        if (!confirm('Remover a logo da empresa?')) return;
+        const usuario_id = localStorage.getItem('usuario_id');
+        const fd = new FormData();
+        fd.append('usuario_id', usuario_id);
+        fd.append('logo', '');
+        try {
+            const res  = await fetch(`${SERVER_URL}/salvar_logo_empresa.php`, { method:'POST', body:fd });
+            const json = await res.json();
+            if (json.status !== 'sucesso') { alert('❌ ' + json.mensagem); return; }
+            localStorage.removeItem('logo_empresa');
+            aplicarLogoEmpresa('');
+            const imgEl   = document.getElementById('logoEmpresaImg');
+            const vazioEl = document.getElementById('logoEmpresaVazio');
+            imgEl.style.display = 'none'; vazioEl.style.display = 'block';
+            document.getElementById('btnRemoverLogo').style.display = 'none';
+            document.getElementById('btnSalvarLogo').style.display = 'none';
+            document.getElementById('inputLogoEmpresa').value = '';
+            window._logoEmpresaPendente = null;
+        } catch(e) {
+            alert('❌ Erro ao remover logo.');
+        }
+    }
+
     function gerarRelatorioPDF() {
         if (!dadosRelatorio) return;
         const meses = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -2068,10 +2205,17 @@ CREATE TABLE movimentacoes_estoque (
             </tr>`;
         }).join('');
 
+        const nomeEmpresa = localStorage.getItem('empresa') || 'ProDoc Orçamentos';
+        const logoBase64  = localStorage.getItem('logo_empresa') || '';
+        const logoHtmlPDF = logoBase64
+            ? `<div style="text-align:center;margin-bottom:10px;"><img src="${logoBase64}" style="max-width:220px;max-height:80px;object-fit:contain;border-radius:6px;"></div>`
+            : '';
+
         const el = document.createElement('div');
         el.innerHTML = `
         <div style="padding:30px;font-family:Arial;max-width:700px;margin:auto;">
-            <h1 style="color:#075e54;text-align:center;margin-bottom:4px;">ProDoc Orçamentos</h1>
+            ${logoHtmlPDF}
+            <h1 style="color:#075e54;text-align:center;margin-bottom:4px;">${nomeEmpresa}</h1>
             <h2 style="color:#25d366;text-align:center;margin-top:0;">Relatório — ${periodo}</h2>
             <hr style="border:0;border-top:2px solid #25d366;margin:15px 0;">
 
