@@ -33,6 +33,23 @@
         .btn-pdf:active { transform: scale(0.97); }
         .btn-share { background: #6f42c1; color: white; border: none; padding: 15px; margin-top: 10px; cursor: pointer; border-radius: 10px; width: 100%; font-weight: bold; font-size: 16px; transition: background 0.2s, transform 0.1s; box-shadow: 0 3px 10px rgba(111,66,193,0.25); }
         .btn-share:active { transform: scale(0.97); }
+        .btn-assinar { background: #e67e22; color: white; border: none; padding: 15px; margin-top: 10px; cursor: pointer; border-radius: 10px; width: 100%; font-weight: bold; font-size: 16px; transition: background 0.2s, transform 0.1s; box-shadow: 0 3px 10px rgba(230,126,34,0.25); }
+        .btn-assinar:active { transform: scale(0.97); }
+        .btn-assinar.assinado { background: #27ae60; box-shadow: 0 3px 10px rgba(39,174,96,0.3); }
+
+        /* Overlay de assinatura */
+        #overlayAssinatura { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.88); z-index:500; flex-direction:column; align-items:center; justify-content:center; padding:16px; }
+        #overlayAssinatura.ativo { display:flex; }
+        .assin-box { background:#fff; border-radius:16px; width:100%; max-width:480px; padding:18px; box-shadow:0 8px 40px rgba(0,0,0,0.4); }
+        .assin-titulo { font-size:16px; font-weight:700; color:#075e54; margin-bottom:4px; }
+        .assin-sub { font-size:11px; color:#999; margin-bottom:12px; }
+        #canvasAssinatura { border:2px dashed #075e54; border-radius:10px; width:100%; touch-action:none; background:#fafafa; cursor:crosshair; display:block; }
+        .assin-acoes { display:flex; gap:10px; margin-top:12px; }
+        .btn-assin-limpar { flex:1; padding:12px; background:#f0f0f0; color:#555; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+        .btn-assin-confirmar { flex:2; padding:12px; background:#075e54; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; }
+        .btn-assin-cancelar { position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.15); color:#fff; border:none; border-radius:50%; width:36px; height:36px; font-size:20px; cursor:pointer; line-height:36px; text-align:center; }
+        .assin-preview { margin-top:10px; text-align:center; font-size:11px; color:#27ae60; display:none; }
+        .assin-preview img { border:1px solid #ddd; border-radius:6px; max-height:50px; margin-top:4px; }
 
         hr { margin: 30px 0; border: 0; border-top: 1px solid #f0f0f0; }
         .logo-preview { display: block; margin: 0 auto; width: 130px; }
@@ -459,9 +476,29 @@
             <label style="margin-top:10px;">Validade da proposta (dias):</label>
             <input type="number" id="diasValidade" value="7" min="1" placeholder="Ex: 7">
 
+            <button id="btnAbrirAssinatura" class="btn-assinar" onclick="abrirAssinatura()">✍️ COLHER ASSINATURA DO CLIENTE</button>
+            <div id="assinaturaPreviewInline" style="display:none;margin:6px 0 2px;text-align:center;">
+                <span style="font-size:11px;color:#27ae60;font-weight:600;">✅ Assinatura capturada</span>
+                <img id="assinaturaThumb" src="" style="display:block;margin:4px auto 0;max-height:44px;border:1px solid #ccc;border-radius:6px;">
+                <button onclick="limparAssinaturaCapturada()" style="margin-top:4px;background:none;border:none;color:#c0392b;font-size:11px;cursor:pointer;text-decoration:underline;">Remover assinatura</button>
+            </div>
             <button class="btn-whatsapp" onclick="gerarOrcamento()">🚀 GERAR E ENVIAR WHATSAPP</button>
             <button class="btn-pdf" onclick="gerarPDF()">📄 GERAR ORÇAMENTO EM PDF</button>
             <button class="btn-share" onclick="compartilharOrcamento()">📤 COMPARTILHAR ORÇAMENTO</button>
+        </div>
+    </div>
+
+    <!-- OVERLAY: ASSINATURA DIGITAL -->
+    <div id="overlayAssinatura">
+        <button class="btn-assin-cancelar" onclick="fecharAssinatura()">✕</button>
+        <div class="assin-box">
+            <div class="assin-titulo">✍️ Assinatura do Cliente</div>
+            <div class="assin-sub" id="assinSubtitulo">Assine no campo abaixo com o dedo ou mouse</div>
+            <canvas id="canvasAssinatura" height="180"></canvas>
+            <div class="assin-acoes">
+                <button class="btn-assin-limpar" onclick="limparCanvas()">🗑️ Limpar</button>
+                <button class="btn-assin-confirmar" onclick="confirmarAssinatura()">✅ Confirmar assinatura</button>
+            </div>
         </div>
     </div>
 
@@ -3462,8 +3499,125 @@ CREATE TABLE movimentacoes_estoque (
 
         // ── Abre nova janela e usa print nativo do browser (Ctrl+P → Salvar como PDF)
         // Solução 100% confiável — sem html2canvas nem html2pdf
-        _abrirJanelaPDF(cliente, itens, total, nomeEmp, cnpjEmp, zapEmp, emailEmp, cidadeEmp, logoEmp);
+        _abrirJanelaPDF(cliente, itens, total, nomeEmp, cnpjEmp, zapEmp, emailEmp, cidadeEmp, logoEmp, _assinaturaBase64);
         salvarNoHistorico(cliente, itens, total, 'pdf');
+    }
+
+    // ══════════════════════════════════════════════
+    //  E4 — ASSINATURA DIGITAL
+    // ══════════════════════════════════════════════
+    let _assinaturaBase64 = null; // base64 PNG da assinatura capturada
+    let _assinCanvas, _assinCtx, _assinDesenhando = false, _assinUltimo = {x:0,y:0};
+
+    function abrirAssinatura() {
+        const overlay = document.getElementById('overlayAssinatura');
+        overlay.classList.add('ativo');
+
+        _assinCanvas = document.getElementById('canvasAssinatura');
+        // Ajusta largura real do canvas ao layout
+        _assinCanvas.width  = _assinCanvas.offsetWidth;
+        _assinCanvas.height = 180;
+        _assinCtx   = _assinCanvas.getContext('2d');
+        _assinCtx.lineWidth   = 2.5;
+        _assinCtx.lineCap     = 'round';
+        _assinCtx.lineJoin    = 'round';
+        _assinCtx.strokeStyle = '#111';
+
+        // Restaura assinatura anterior se existir
+        if (_assinaturaBase64) {
+            const img = new Image();
+            img.onload = () => _assinCtx.drawImage(img, 0, 0);
+            img.src = _assinaturaBase64;
+        }
+
+        // Atualiza subtítulo com nome do cliente
+        const cliente = document.getElementById('clienteInput')?.value.trim();
+        const sub = document.getElementById('assinSubtitulo');
+        if (cliente && sub) sub.textContent = `Assine no campo abaixo — ${cliente}`;
+
+        _registrarEventosCanvas();
+    }
+
+    function fecharAssinatura() {
+        document.getElementById('overlayAssinatura').classList.remove('ativo');
+        _removerEventosCanvas();
+    }
+
+    function limparCanvas() {
+        if (_assinCtx) _assinCtx.clearRect(0, 0, _assinCanvas.width, _assinCanvas.height);
+    }
+
+    function confirmarAssinatura() {
+        if (!_assinCtx) return;
+
+        // Verifica se o canvas tem algo desenhado (não está em branco)
+        const dados = _assinCtx.getImageData(0, 0, _assinCanvas.width, _assinCanvas.height).data;
+        const temTraco = dados.some((v, i) => i % 4 === 3 && v > 0);
+        if (!temTraco) { alert('Por favor, realize a assinatura antes de confirmar.'); return; }
+
+        _assinaturaBase64 = _assinCanvas.toDataURL('image/png');
+
+        // Atualiza preview inline
+        document.getElementById('assinaturaThumb').src = _assinaturaBase64;
+        document.getElementById('assinaturaPreviewInline').style.display = 'block';
+        const btn = document.getElementById('btnAbrirAssinatura');
+        btn.textContent = '✅ ASSINATURA CAPTURADA — Alterar';
+        btn.classList.add('assinado');
+
+        fecharAssinatura();
+    }
+
+    function limparAssinaturaCapturada() {
+        _assinaturaBase64 = null;
+        document.getElementById('assinaturaPreviewInline').style.display = 'none';
+        const btn = document.getElementById('btnAbrirAssinatura');
+        btn.textContent = '✍️ COLHER ASSINATURA DO CLIENTE';
+        btn.classList.remove('assinado');
+    }
+
+    function _posCanvas(e) {
+        const r = _assinCanvas.getBoundingClientRect();
+        const src = e.touches ? e.touches[0] : e;
+        return { x: src.clientX - r.left, y: src.clientY - r.top };
+    }
+
+    function _onStart(e) {
+        e.preventDefault();
+        _assinDesenhando = true;
+        _assinUltimo = _posCanvas(e);
+        _assinCtx.beginPath();
+        _assinCtx.moveTo(_assinUltimo.x, _assinUltimo.y);
+    }
+
+    function _onMove(e) {
+        e.preventDefault();
+        if (!_assinDesenhando) return;
+        const p = _posCanvas(e);
+        _assinCtx.lineTo(p.x, p.y);
+        _assinCtx.stroke();
+        _assinUltimo = p;
+    }
+
+    function _onEnd(e) { e.preventDefault(); _assinDesenhando = false; }
+
+    function _registrarEventosCanvas() {
+        _assinCanvas.addEventListener('mousedown',  _onStart);
+        _assinCanvas.addEventListener('mousemove',  _onMove);
+        _assinCanvas.addEventListener('mouseup',    _onEnd);
+        _assinCanvas.addEventListener('mouseleave', _onEnd);
+        _assinCanvas.addEventListener('touchstart', _onStart, { passive: false });
+        _assinCanvas.addEventListener('touchmove',  _onMove,  { passive: false });
+        _assinCanvas.addEventListener('touchend',   _onEnd,   { passive: false });
+    }
+
+    function _removerEventosCanvas() {
+        _assinCanvas.removeEventListener('mousedown',  _onStart);
+        _assinCanvas.removeEventListener('mousemove',  _onMove);
+        _assinCanvas.removeEventListener('mouseup',    _onEnd);
+        _assinCanvas.removeEventListener('mouseleave', _onEnd);
+        _assinCanvas.removeEventListener('touchstart', _onStart);
+        _assinCanvas.removeEventListener('touchmove',  _onMove);
+        _assinCanvas.removeEventListener('touchend',   _onEnd);
     }
 
     async function compartilharOrcamento() {
@@ -3527,7 +3681,7 @@ CREATE TABLE movimentacoes_estoque (
         }
     }
 
-    function _abrirJanelaPDF(cliente, itens, total, nomeEmp, cnpjEmp, zapEmp, emailEmp, cidadeEmp, logoEmp) {
+    function _abrirJanelaPDF(cliente, itens, total, nomeEmp, cnpjEmp, zapEmp, emailEmp, cidadeEmp, logoEmp, assinaturaBase64) {
         const hoje = new Date();
         const diasEl = document.getElementById('diasValidade');
         const dias        = parseInt(diasEl ? diasEl.value : '7') || 7;
@@ -3672,10 +3826,16 @@ CREATE TABLE movimentacoes_estoque (
   </tr>
   <tr style="background:#f9f9f9;">
     <td colspan="2" style="padding:5px 20px 20px;width:50%;">
-      <div style="border-top:1px solid #bbb;padding-top:5px;text-align:center;font-size:10px;color:#999;">Assinatura do cliente — ${cliente}</div>
+      ${assinaturaBase64
+        ? `<div style="text-align:center;">
+             <img src="${assinaturaBase64}" style="max-height:64px;max-width:180px;display:block;margin:0 auto 4px;">
+             <div style="border-top:1px solid #27ae60;padding-top:4px;font-size:10px;color:#27ae60;font-weight:600;">✅ Assinado digitalmente — ${cliente}</div>
+           </div>`
+        : `<div style="border-top:1px solid #bbb;padding-top:5px;text-align:center;font-size:10px;color:#999;">Assinatura do cliente — ${cliente}</div>`
+      }
     </td>
     <td colspan="2" style="padding:5px 20px 20px;width:50%;">
-      <div style="border-top:1px solid #bbb;padding-top:5px;text-align:center;font-size:10px;color:#999;">Data: ___ / ___ / ______</div>
+      <div style="border-top:1px solid #bbb;padding-top:5px;text-align:center;font-size:10px;color:#999;">${assinaturaBase64 ? `Data: ${hojeStr}` : 'Data: ___ / ___ / ______'}</div>
     </td>
   </tr>
 
