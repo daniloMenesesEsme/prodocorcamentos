@@ -221,6 +221,82 @@
 
         /* Estilo para esconder as telas */
         #telaPrincipal { display: none; }
+
+        /* ===== DARK MODE ===== */
+        body.dark { background: #1a1a2e; color: #e0e0e0; }
+        body.dark .card { background: #16213e; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+        body.dark h2 { color: #4ecca3; border-bottom-color: #4ecca3; }
+        body.dark label { color: #ccc; }
+        body.dark input, body.dark select, body.dark textarea { background: #0f3460; border-color: #2a4a7f; color: #e0e0e0; }
+        body.dark input::placeholder { color: #6a8ab0; }
+        body.dark #bottomNav { background: #16213e; border-top-color: #4ecca3; }
+        body.dark .nav-btn { color: #6a8ab0; }
+        body.dark .nav-btn.ativo { color: #4ecca3; }
+        body.dark .mais-menu { background: #16213e; }
+        body.dark .mais-btn { color: #e0e0e0; }
+        body.dark .mais-btn:hover, body.dark .mais-btn:active { background: #0f3460; }
+        body.dark .item-orcamento { background: #0f3460; border-color: #2a4a7f; }
+        body.dark .total-box { background: #0f3460; color: #4ecca3; }
+        body.dark .historico-item { background: #0f3460; border-left-color: #4ecca3; }
+        body.dark .hi-cliente { color: #4ecca3; }
+        body.dark .hi-data, body.dark .hi-tipo { color: #6a8ab0; }
+        body.dark .produto-item { background: #0f3460; }
+        body.dark .produto-nome { color: #4ecca3; }
+        body.dark .produto-detalhe { color: #6a8ab0; }
+        body.dark .form-produto { background: #0f3460; border-color: #2a4a7f; }
+        body.dark .catalogo-item { background: #0f3460; }
+        body.dark .dash-card { background: #0f3460; border-left-color: #4ecca3; }
+        body.dark .dash-card.verde { background: #0d2b1e; }
+        body.dark .dash-card.vermelho { background: #2b0d0d; }
+        body.dark .dash-card.roxo { background: #1e0d2b; }
+        body.dark .dash-numero { color: #4ecca3; }
+        body.dark .dash-label { color: #6a8ab0; }
+        body.dark .top-cliente { border-bottom-color: #2a4a7f; }
+        body.dark .mes-bar-track { background: #2a4a7f; }
+        body.dark .mes-bar-fill { background: #4ecca3; }
+        body.dark .mes-bar-label, body.dark .mes-bar-val { color: #6a8ab0; }
+        body.dark .cliente-item { background: #0f3460; }
+        body.dark .cliente-nome { color: #4ecca3; }
+        body.dark .cliente-detalhe { color: #6a8ab0; }
+        body.dark .fin-card { filter: brightness(0.85); }
+        body.dark .fin-label { color: #6a8ab0; }
+        body.dark .despesa-item { background: #0f3460; }
+        body.dark .despesa-nome { color: #e0e0e0; }
+        body.dark .despesa-detalhe { color: #6a8ab0; }
+        body.dark .cat-badge { background: #2a4a7f; color: #aaa; }
+        body.dark .rel-card { filter: brightness(0.85); }
+        body.dark .rel-label { color: #6a8ab0; }
+        body.dark .rel-secao { background: #0f3460; }
+        body.dark .rel-secao-titulo { color: #4ecca3; }
+        body.dark .orc-rel-item { border-bottom-color: #2a4a7f; }
+        body.dark .orc-rel-cliente { color: #e0e0e0; }
+        body.dark .orc-rel-meta, body.dark .orc-rel-itens { color: #6a8ab0; }
+        body.dark .estoque-item { background: #0f3460; border-left-color: #4ecca3; }
+        body.dark .estoque-item.alerta { background: #2b0d0d; border-left-color: #dc3545; }
+        body.dark .estoque-item.zerado { background: #2b1500; border-left-color: #fd7e14; }
+        body.dark .estoque-nome { color: #4ecca3; }
+        body.dark .estoque-detalhe { color: #6a8ab0; }
+        body.dark .hist-busca-input { background: #0f3460; border-color: #2a4a7f; color: #e0e0e0; }
+        body.dark .hist-busca-input:focus { border-color: #4ecca3; background: #0f3460; }
+        body.dark .hist-filtro-btn { background: #0f3460; border-color: #2a4a7f; color: #aaa; }
+        body.dark .hist-filtro-btn.ativo { background: #4ecca3; color: #16213e; border-color: #4ecca3; }
+        body.dark .ver-orc-modal, body.dark .edit-orc-modal, body.dark .mais-menu,
+        body.dark .mov-modal, body.dark .novo-cli-modal { background: #16213e; }
+        body.dark .ver-orc-linha { border-bottom-color: #2a4a7f; }
+        body.dark .ver-orc-desc { color: #e0e0e0; }
+        body.dark .ver-orc-val { color: #4ecca3; }
+        body.dark .ver-orc-total-linha { background: #0f3460; color: #4ecca3; }
+        body.dark .cli-ac-input { background: #0f3460; border-color: #2a4a7f; color: #e0e0e0; }
+        body.dark .cli-dropdown { background: #16213e; border-color: #2a4a7f; }
+        body.dark .cli-dropdown-item { border-bottom-color: #2a4a7f; color: #e0e0e0; }
+        body.dark .cli-dropdown-item:hover { background: #0f3460; }
+        body.dark .cli-dropdown-item small { color: #6a8ab0; }
+        body.dark .cli-badge { background: #0d2b1e; border-color: #2a7f4a; color: #4ecca3; }
+        body.dark .btn-desc-toggle { background: #2a4a7f; color: #aaa; border-color: #2a4a7f; }
+        body.dark .btn-filtrar { background: #4ecca3; color: #16213e; }
+        body.dark p { color: #aaa; }
+        body.dark hr { border-top-color: #2a4a7f; }
+        /* ===== FIM DARK MODE ===== */
     </style>
 </head>
 <body>
@@ -1030,6 +1106,7 @@
             <button class="mais-btn" onclick="fecharMais();abrirProdutos()"><span>🗂️</span> Catálogo de Produtos</button>
             <button class="mais-btn" onclick="fecharMais();verHistorico()"><span>📋</span> Histórico de Orçamentos</button>
             <button class="mais-btn" id="btnVisaoEmpresa" style="display:none;" onclick="fecharMais();abrirVisaoEmpresa()"><span>🏭</span> Visão da Empresa</button>
+            <button class="mais-btn" id="btnDarkMode" onclick="alternarDarkMode()"><span id="iconDark">🌙</span> <span id="txtDarkMode">Tema Escuro</span></button>
             <button class="mais-btn" onclick="fecharMais();fazerLogout()" style="color:#dc3545;"><span>🚪</span> Sair do Sistema</button>
         </div>
     </div>
@@ -1050,8 +1127,27 @@
     const isNativeApp = !window.location.pathname.includes('/prodocorcamentos/');
     const SERVER_URL = isNativeApp ? 'http://192.168.0.5/prodocorcamentos/www' : '/prodocorcamentos/www';
 
+    // --- DARK MODE ---
+    function alternarDarkMode() {
+        const isDark = document.body.classList.toggle('dark');
+        localStorage.setItem('darkMode', isDark ? '1' : '0');
+        document.getElementById('iconDark').textContent  = isDark ? '☀️' : '🌙';
+        document.getElementById('txtDarkMode').textContent = isDark ? 'Tema Claro' : 'Tema Escuro';
+    }
+
+    function aplicarDarkModeSalvo() {
+        if (localStorage.getItem('darkMode') === '1') {
+            document.body.classList.add('dark');
+            const icon = document.getElementById('iconDark');
+            const txt  = document.getElementById('txtDarkMode');
+            if (icon) icon.textContent = '☀️';
+            if (txt)  txt.textContent  = 'Tema Claro';
+        }
+    }
+
     // --- INICIALIZAÇÃO ---
     window.onload = function() {
+        aplicarDarkModeSalvo();
         if(localStorage.getItem('logado') === 'sim') {
             alternarTelas('principal');
             carregarDadosIniciais();
