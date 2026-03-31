@@ -3450,11 +3450,10 @@ CREATE TABLE movimentacoes_estoque (
         const emp = (() => {
             try { return JSON.parse(localStorage.getItem('empresa_dados') || '{}'); } catch(e) { return {}; }
         })();
-        const nomeEmp   = emp.nome_fantasia || localStorage.getItem('empresa') || 'Empresa';
+        const nomeEmp   = emp.nome_fantasia || localStorage.getItem('empresa') || '';
         const cnpjEmp   = emp.cnpj_cpf  || '';
         const zapEmp    = emp.whatsapp   || localStorage.getItem('zap') || '';
         const emailEmp  = emp.email      || '';
-        const endEmp    = [emp.endereco, emp.numero].filter(Boolean).join(', ');
         const cidadeEmp = [emp.cidade, emp.estado].filter(Boolean).join(' - ');
         const siteEmp   = emp.site || '';
         const logoEmp   = localStorage.getItem('logo_empresa') || '';
@@ -3468,157 +3467,143 @@ CREATE TABLE movimentacoes_estoque (
         const totalStr    = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         const obsP        = document.getElementById('orcObservacoes').value.trim();
         const fmt         = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const numOrc      = String(Date.now()).slice(-6);
 
-        // Número de orçamento simulado (últimos 5 chars do timestamp)
-        const numOrc = String(Date.now()).slice(-5);
-
-        // Calcula subtotal bruto (sem desconto) para mostrar economia
-        let totalSemDesconto = 0;
+        // ── Linhas da tabela (corrige item.val, não item.valor)
+        let totalBruto = 0;
         const linhasItens = itens.map((item, idx) => {
-            const valorBruto = item.qtd * item.valor;
-            totalSemDesconto += valorBruto;
-            const temDesc = item.desconto > 0;
-            const valorUnit = Number(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-            const descTag = temDesc
-                ? `<div style="font-size:10px;color:#e67e22;font-weight:bold;margin-top:2px;">▼ ${item.desconto}% de desconto</div>`
-                : '';
-            return `<tr style="background:${idx % 2 === 0 ? '#ffffff' : '#f9fbf9'};">
-                <td style="padding:9px 10px;border-bottom:1px solid #eef2ee;vertical-align:top;">
-                    <span style="font-weight:600;color:#222;">${item.desc}</span>${descTag}
-                </td>
-                <td style="padding:9px 10px;border-bottom:1px solid #eef2ee;text-align:center;color:#555;font-size:13px;white-space:nowrap;">${item.qtd}</td>
-                <td style="padding:9px 10px;border-bottom:1px solid #eef2ee;text-align:right;color:#555;font-size:13px;white-space:nowrap;">R$ ${valorUnit}</td>
-                <td style="padding:9px 10px;border-bottom:1px solid #eef2ee;text-align:right;font-weight:700;color:#075e54;white-space:nowrap;">${fmt(item.subtotal)}</td>
+            const valorUnit = Number(item.val) || 0;          // <-- CORRIGIDO
+            const bruto     = item.qtd * valorUnit;
+            totalBruto     += bruto;
+            const temDesc   = item.desconto > 0;
+            const descStr   = temDesc ? ` <span style="font-size:10px;color:#c0392b;">(-${item.desconto}%)</span>` : '';
+            const bg        = idx % 2 === 0 ? '#ffffff' : '#f7f9f7';
+            return `<tr style="background:${bg};">
+                <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;font-size:13px;color:#222;">${item.desc}${descStr}</td>
+                <td style="padding:9px 8px;border-bottom:1px solid #e8e8e8;text-align:center;font-size:13px;color:#555;white-space:nowrap;">${Number(item.qtd) % 1 === 0 ? parseInt(item.qtd) : item.qtd}</td>
+                <td style="padding:9px 8px;border-bottom:1px solid #e8e8e8;text-align:right;font-size:13px;color:#555;white-space:nowrap;">${fmt(valorUnit)}</td>
+                <td style="padding:9px 12px;border-bottom:1px solid #e8e8e8;text-align:right;font-size:13px;font-weight:700;color:#075e54;white-space:nowrap;">${fmt(item.subtotal)}</td>
             </tr>`;
         }).join('');
 
-        const economia = totalSemDesconto - total;
-        const econStr  = economia > 0.009
-            ? `<tr><td colspan="3" style="padding:7px 10px;text-align:right;font-size:12px;color:#e67e22;">Desconto aplicado:</td>
-               <td style="padding:7px 10px;text-align:right;font-size:12px;color:#e67e22;font-weight:bold;">- ${fmt(economia)}</td></tr>`
+        const economia = totalBruto - total;
+        const econRow  = economia > 0.009
+            ? `<tr><td colspan="3" style="padding:7px 12px;text-align:right;font-size:12px;color:#c0392b;border-bottom:1px solid #e8e8e8;">Desconto total</td>
+               <td style="padding:7px 12px;text-align:right;font-size:12px;color:#c0392b;font-weight:700;border-bottom:1px solid #e8e8e8;">− ${fmt(economia)}</td></tr>`
             : '';
 
-        // Bloco de contato da empresa
-        const contatoLines = [
-            cnpjEmp  ? `<span style="margin-right:14px;">📋 ${cnpjEmp}</span>` : '',
-            zapEmp   ? `<span style="margin-right:14px;">📱 ${zapEmp.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3')}</span>` : '',
-            emailEmp ? `<span style="margin-right:14px;">✉ ${emailEmp}</span>` : '',
-            siteEmp  ? `<span>${siteEmp}</span>` : '',
-        ].filter(Boolean).join('');
+        // ── Contatos da empresa (linha compacta)
+        const contatos = [
+            zapEmp   ? zapEmp.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3') : '',
+            emailEmp || '',
+            cidadeEmp || '',
+            siteEmp  || '',
+        ].filter(Boolean).join('  ·  ');
 
-        const enderecoLine = [endEmp, cidadeEmp].filter(Boolean).join(' · ');
-
-        const logoHtml = logoEmp
-            ? `<img src="${logoEmp}" style="max-width:140px;max-height:70px;object-fit:contain;display:block;margin-bottom:6px;">`
+        // ── Logo inline com nome
+        const logoTag = logoEmp
+            ? `<img src="${logoEmp}" style="height:48px;width:auto;object-fit:contain;vertical-align:middle;margin-right:12px;border-radius:5px;">`
             : '';
 
         const elementoParaPDF = document.createElement('div');
         elementoParaPDF.innerHTML = `
-        <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:720px;margin:0 auto;color:#333;">
+        <div style="font-family:Arial,Helvetica,sans-serif;max-width:700px;margin:0 auto;color:#222;background:#fff;">
 
-            <!-- CABEÇALHO -->
-            <div style="background:linear-gradient(135deg,#075e54 0%,#128c7e 100%);padding:28px 32px;border-radius:10px 10px 0 0;">
-                <table style="width:100%;border-collapse:collapse;">
-                    <tr>
-                        <td style="vertical-align:middle;">
-                            ${logoHtml}
-                            <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:0.5px;">${nomeEmp}</div>
-                            ${contatoLines ? `<div style="margin-top:5px;font-size:11px;color:rgba(255,255,255,0.82);">${contatoLines}</div>` : ''}
-                            ${enderecoLine ? `<div style="margin-top:3px;font-size:11px;color:rgba(255,255,255,0.7);">📍 ${enderecoLine}</div>` : ''}
-                        </td>
-                        <td style="text-align:right;vertical-align:top;white-space:nowrap;">
-                            <div style="font-size:12px;color:rgba(255,255,255,0.7);font-weight:600;letter-spacing:1px;text-transform:uppercase;">Proposta Comercial</div>
-                            <div style="font-size:26px;font-weight:800;color:#25d366;margin-top:4px;">#${numOrc}</div>
-                            <div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.75);">Data: <strong style="color:#fff;">${hojeStr}</strong></div>
-                            <div style="margin-top:3px;font-size:11px;color:rgba(255,255,255,0.75);">Válida até: <strong style="color:#ffdd57;">${validadeStr}</strong></div>
-                        </td>
+            <!-- ── TOPO: barra verde fina + número -->
+            <div style="background:#075e54;padding:10px 28px;display:table;width:100%;box-sizing:border-box;">
+                <div style="display:table-cell;vertical-align:middle;">
+                    <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.6);letter-spacing:2px;text-transform:uppercase;">Proposta Comercial</span>
+                </div>
+                <div style="display:table-cell;text-align:right;vertical-align:middle;">
+                    <span style="font-size:13px;font-weight:700;color:#25d366;">Nº ${numOrc}</span>
+                    <span style="font-size:11px;color:rgba(255,255,255,0.55);margin-left:14px;">${hojeStr}</span>
+                </div>
+            </div>
+
+            <!-- ── CABEÇALHO: logo + empresa | validade -->
+            <div style="padding:20px 28px 16px;border-bottom:2px solid #075e54;display:table;width:100%;box-sizing:border-box;">
+                <div style="display:table-cell;vertical-align:middle;">
+                    ${logoTag}
+                    <span style="font-size:19px;font-weight:800;color:#075e54;vertical-align:middle;">${nomeEmp}</span>
+                    ${cnpjEmp ? `<div style="font-size:10px;color:#888;margin-top:3px;padding-left:${logoEmp ? '60px' : '0'};">CNPJ/CPF: ${cnpjEmp}</div>` : ''}
+                    ${contatos ? `<div style="font-size:10px;color:#888;margin-top:2px;padding-left:${logoEmp ? '60px' : '0'};">${contatos}</div>` : ''}
+                </div>
+                <div style="display:table-cell;text-align:right;vertical-align:middle;white-space:nowrap;">
+                    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Válida até</div>
+                    <div style="font-size:16px;font-weight:800;color:#856404;margin-top:2px;">${validadeStr}</div>
+                </div>
+            </div>
+
+            <!-- ── DE / PARA -->
+            <div style="padding:14px 28px;background:#f7f9f7;border-bottom:1px solid #e8e8e8;display:table;width:100%;box-sizing:border-box;">
+                ${nomeEmp ? `<div style="display:table-cell;width:50%;vertical-align:top;padding-right:16px;">
+                    <div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">De</div>
+                    <div style="font-size:13px;font-weight:600;color:#333;">${nomeEmp}</div>
+                </div>` : ''}
+                <div style="display:table-cell;width:50%;vertical-align:top;">
+                    <div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Para</div>
+                    <div style="font-size:13px;font-weight:600;color:#333;">${cliente}</div>
+                </div>
+            </div>
+
+            <!-- ── TABELA DE ITENS -->
+            <table style="width:100%;border-collapse:collapse;margin:0;">
+                <thead>
+                    <tr style="background:#f0f0f0;border-top:1px solid #ddd;">
+                        <th style="padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;">Descrição</th>
+                        <th style="padding:9px 8px;text-align:center;font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Qtd</th>
+                        <th style="padding:9px 8px;text-align:right;font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Unit.</th>
+                        <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Total</th>
                     </tr>
-                </table>
-            </div>
+                </thead>
+                <tbody>${linhasItens}</tbody>
+                <tfoot>
+                    ${econRow}
+                    <tr style="background:#f7f9f7;border-top:2px solid #075e54;">
+                        <td colspan="3" style="padding:12px 12px;text-align:right;font-size:13px;font-weight:700;color:#333;">TOTAL</td>
+                        <td style="padding:12px 12px;text-align:right;font-size:17px;font-weight:800;color:#075e54;white-space:nowrap;">R$ ${totalStr}</td>
+                    </tr>
+                </tfoot>
+            </table>
 
-            <!-- BARRA ACCENT -->
-            <div style="height:5px;background:linear-gradient(90deg,#25d366,#34b7f1,#075e54);"></div>
+            <!-- ── OBSERVAÇÕES + VALIDADE -->
+            ${obsP ? `<div style="padding:14px 28px;border-top:1px solid #e8e8e8;background:#fffdf5;">
+                <div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Observações</div>
+                <div style="font-size:12px;color:#555;line-height:1.6;">${obsP}</div>
+            </div>` : ''}
 
-            <!-- PARA (CLIENTE) -->
-            <div style="background:#f8fdf8;padding:16px 32px;border-bottom:1px solid #e0ede0;">
-                <span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;">Para</span>
-                <div style="font-size:17px;font-weight:700;color:#075e54;margin-top:3px;">👤 ${cliente}</div>
-            </div>
-
-            <!-- TABELA DE ITENS -->
-            <div style="padding:0 0 0 0;">
-                <table style="width:100%;border-collapse:collapse;">
-                    <thead>
-                        <tr style="background:#075e54;">
-                            <th style="padding:10px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;">Descrição</th>
-                            <th style="padding:10px 10px;text-align:center;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Qtd</th>
-                            <th style="padding:10px 10px;text-align:right;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Valor Unit.</th>
-                            <th style="padding:10px 10px;text-align:right;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>${linhasItens}</tbody>
-                    <tfoot>
-                        ${econStr}
-                        <tr style="background:#f0fff4;">
-                            <td colspan="3" style="padding:12px 10px;text-align:right;font-size:14px;font-weight:700;color:#075e54;">TOTAL</td>
-                            <td style="padding:12px 10px;text-align:right;font-size:18px;font-weight:800;color:#25d366;">R$ ${totalStr}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-            <!-- VALIDADE + OBS -->
-            <div style="padding:18px 32px;background:#f8fdf8;border-top:2px solid #e0ede0;">
+            <!-- ── ACEITE -->
+            <div style="padding:20px 28px 14px;border-top:1px solid #e8e8e8;">
+                <div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:18px;">Aprovação</div>
                 <table style="width:100%;border-collapse:collapse;">
                     <tr>
-                        <td style="vertical-align:top;padding-right:20px;">
-                            ${obsP ? `<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Observações</div>
-                            <div style="font-size:12px;color:#555;line-height:1.5;">${obsP}</div>` : ''}
+                        <td style="width:46%;padding-right:8px;vertical-align:bottom;">
+                            <div style="border-top:1px solid #bbb;padding-top:5px;">
+                                <div style="font-size:10px;color:#888;text-align:center;">Assinatura do Cliente — ${cliente}</div>
+                            </div>
                         </td>
-                        <td style="text-align:right;vertical-align:top;white-space:nowrap;">
-                            <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 14px;display:inline-block;text-align:center;">
-                                <div style="font-size:10px;color:#856404;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">⏳ Proposta válida até</div>
-                                <div style="font-size:16px;font-weight:800;color:#856404;margin-top:4px;">${validadeStr}</div>
+                        <td style="width:8%;"></td>
+                        <td style="width:46%;padding-left:8px;vertical-align:bottom;">
+                            <div style="border-top:1px solid #bbb;padding-top:5px;">
+                                <div style="font-size:10px;color:#888;text-align:center;">Data: _____ / _____ / __________</div>
                             </div>
                         </td>
                     </tr>
                 </table>
             </div>
 
-            <!-- ACEITE -->
-            <div style="padding:20px 32px;border-top:1px solid #e0ede0;">
-                <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Aprovação da Proposta</div>
-                <table style="width:100%;border-collapse:collapse;">
-                    <tr>
-                        <td style="width:48%;padding-right:10px;">
-                            <div style="border-top:1.5px solid #bbb;padding-top:6px;text-align:center;">
-                                <div style="font-size:11px;color:#555;">Assinatura do Cliente</div>
-                                <div style="font-size:10px;color:#aaa;margin-top:2px;">${cliente}</div>
-                            </div>
-                        </td>
-                        <td style="width:4%;"></td>
-                        <td style="width:48%;padding-left:10px;">
-                            <div style="border-top:1.5px solid #bbb;padding-top:6px;text-align:center;">
-                                <div style="font-size:11px;color:#555;">Data de Aprovação</div>
-                                <div style="font-size:10px;color:#aaa;margin-top:2px;">___/___/______</div>
-                            </div>
-                        </td>
-                    </tr>
-                </table>
-            </div>
-
-            <!-- RODAPÉ -->
-            <div style="background:#075e54;padding:12px 32px;border-radius:0 0 10px 10px;display:flex;justify-content:space-between;align-items:center;">
-                <div style="font-size:11px;color:rgba(255,255,255,0.7);">Gerado por <strong style="color:#25d366;">ProDoc Orçamentos</strong></div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.55);">${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+            <!-- ── RODAPÉ -->
+            <div style="padding:9px 28px;background:#f0f0f0;border-top:1px solid #ddd;display:table;width:100%;box-sizing:border-box;">
+                <div style="display:table-cell;font-size:10px;color:#aaa;">Gerado por <strong style="color:#075e54;">ProDoc Orçamentos</strong></div>
+                <div style="display:table-cell;text-align:right;font-size:10px;color:#bbb;">${hojeStr}</div>
             </div>
 
         </div>`;
 
         html2pdf().from(elementoParaPDF).set({
-            margin: [0.4, 0.4, 0.4, 0.4],
+            margin: [0.5, 0.5, 0.5, 0.5],
             filename: `Proposta_${cliente.replace(/\s+/g,'_')}_${numOrc}.pdf`,
-            html2canvas: { scale: 2, useCORS: true },
+            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
             jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
         }).save();
         salvarNoHistorico(cliente, itens, total, 'pdf');
