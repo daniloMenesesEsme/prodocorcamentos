@@ -1436,6 +1436,9 @@
             document.getElementById('infoUsuario').textContent = `Olá, ${nome} | Licença válida até ${validade}`;
         }
 
+        // Inicializa notificações locais (pede permissão no Android)
+        inicializarNotificacoes();
+
         // Aplica logo da empresa do cache local
         aplicarLogoEmpresa(localStorage.getItem('logo_empresa') || '');
 
@@ -3904,6 +3907,97 @@ CREATE TABLE movimentacoes_estoque (
         };
     }
 
+    // ══════════════════════════════════════════════
+    //  E1 — NOTIFICAÇÕES LOCAIS (Capacitor)
+    // ══════════════════════════════════════════════
+    async function inicializarNotificacoes() {
+        const plugin = window.Capacitor?.Plugins?.LocalNotifications;
+        if (!plugin) return; // Não disponível no browser — silencioso
+
+        try {
+            // Solicita permissão se ainda não foi concedida
+            const perm = await plugin.checkPermissions();
+            if (perm.display === 'prompt' || perm.display === 'prompt-with-rationale') {
+                await plugin.requestPermissions();
+            }
+
+            // Canal obrigatório no Android 8+
+            await plugin.createChannel({
+                id:          'prodoc_orcamentos',
+                name:        'ProDoc Orçamentos',
+                description: 'Lembretes e alertas de orçamentos',
+                importance:  4,   // HIGH
+                visibility:  1,
+                vibration:   true
+            });
+
+            // Toque na notificação → abre o Histórico
+            plugin.addListener('localNotificationActionPerformed', () => {
+                verHistorico();
+            });
+        } catch(e) {
+            console.warn('Notificações locais não disponíveis:', e);
+        }
+    }
+
+    async function agendarNotificacoesOrcamento(orcId, cliente, diasValidade) {
+        const plugin = window.Capacitor?.Plugins?.LocalNotifications;
+        if (!plugin) return;
+        try {
+            const perm = await plugin.checkPermissions();
+            if (perm.display !== 'granted') return;
+
+            const agora = new Date();
+            const notifs = [];
+
+            // 1. Aviso de vencimento — 1 dia antes às 9h (só se validade > 1 dia)
+            if (diasValidade > 1) {
+                const dtVenc = new Date();
+                dtVenc.setDate(agora.getDate() + diasValidade - 1);
+                dtVenc.setHours(9, 0, 0, 0);
+                if (dtVenc > agora) {
+                    notifs.push({
+                        id:        orcId * 2,
+                        title:     '⏰ Orçamento vence amanhã!',
+                        body:      `A proposta para ${cliente} expira amanhã. Faça o follow-up agora.`,
+                        channelId: 'prodoc_orcamentos',
+                        schedule:  { at: dtVenc }
+                    });
+                }
+            }
+
+            // 2. Follow-up — 3 dias após a criação às 9h
+            const dtFollowUp = new Date();
+            dtFollowUp.setDate(agora.getDate() + 3);
+            dtFollowUp.setHours(9, 0, 0, 0);
+            if (dtFollowUp > agora) {
+                notifs.push({
+                    id:        orcId * 2 + 1,
+                    title:     '📋 Follow-up pendente',
+                    body:      `${cliente} ainda não respondeu seu orçamento. Hora de entrar em contato!`,
+                    channelId: 'prodoc_orcamentos',
+                    schedule:  { at: dtFollowUp }
+                });
+            }
+
+            if (notifs.length > 0) await plugin.schedule({ notifications: notifs });
+        } catch(e) {
+            console.warn('Erro ao agendar notificações:', e);
+        }
+    }
+
+    async function cancelarNotificacoesOrcamento(orcId) {
+        const plugin = window.Capacitor?.Plugins?.LocalNotifications;
+        if (!plugin || !orcId) return;
+        try {
+            await plugin.cancel({
+                notifications: [{ id: orcId * 2 }, { id: orcId * 2 + 1 }]
+            });
+        } catch(e) {
+            console.warn('Erro ao cancelar notificações:', e);
+        }
+    }
+
     async function salvarNoHistorico(cliente, itens, total, tipo) {
         const obs  = document.getElementById('orcObservacoes')?.value.trim() || '';
         const dias = parseInt(document.getElementById('diasValidade')?.value) || 7;
@@ -3935,6 +4029,8 @@ CREATE TABLE movimentacoes_estoque (
             if (json.id && cacheHistorico.length > 0) {
                 cacheHistorico[0].id = json.id;
                 cacheHistorico[0].status = 'enviado';
+                // Agenda notificações de vencimento e follow-up
+                agendarNotificacoesOrcamento(json.id, cliente, dias);
             }
         } catch(e) {
             // Falha silenciosa — já está salvo no localStorage
@@ -4281,6 +4377,11 @@ CREATE TABLE movimentacoes_estoque (
             badgeStatus.className = `status-badge ${STATUS_CLASS[novoStatus]}`;
             document.getElementById('btnStatusAprovado').classList.toggle('ativo', novoStatus === 'aprovado');
             document.getElementById('btnStatusRecusado').classList.toggle('ativo', novoStatus === 'recusado');
+
+            // Cancela notificações agendadas se aprovado ou recusado
+            if (novoStatus === 'aprovado' || novoStatus === 'recusado') {
+                cancelarNotificacoesOrcamento(h.id);
+            }
 
             // Re-renderiza lista para refletir novo status
             filtrarHistorico();
