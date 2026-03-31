@@ -3457,6 +3457,25 @@ CREATE TABLE movimentacoes_estoque (
         const cidadeEmp = [emp.cidade, emp.estado].filter(Boolean).join(' - ');
         const logoEmp   = localStorage.getItem('logo_empresa') || '';
 
+        // ── Abre nova janela e usa print nativo do browser (Ctrl+P → Salvar como PDF)
+        // Solução 100% confiável — sem html2canvas nem html2pdf
+        _abrirJanelaPDF(cliente, itens, total, nomeEmp, cnpjEmp, zapEmp, emailEmp, cidadeEmp, logoEmp);
+        salvarNoHistorico(cliente, itens, total, 'pdf');
+    }
+
+    function _abrirJanelaPDF(cliente, itens, total, nomeEmp, cnpjEmp, zapEmp, emailEmp, cidadeEmp, logoEmp) {
+        const hoje = new Date();
+        const diasEl = document.getElementById('diasValidade');
+        const dias = parseInt(diasEl ? diasEl.value : '7') || 7;
+        const dataValidade = new Date();
+        dataValidade.setDate(dataValidade.getDate() + dias);
+        const hojeStr     = hoje.toLocaleDateString('pt-BR');
+        const validadeStr = dataValidade.toLocaleDateString('pt-BR');
+        const totalStr    = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const obsP        = (document.getElementById('orcObservacoes')?.value || '').trim();
+        const fmt         = v => 'R$&nbsp;' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const numOrc      = String(Date.now()).slice(-6);
+
         const dias = parseInt(document.getElementById('diasValidade').value) || 7;
         const hoje = new Date();
         const dataValidade = new Date();
@@ -3468,163 +3487,160 @@ CREATE TABLE movimentacoes_estoque (
         const fmt         = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         const numOrc      = String(Date.now()).slice(-6);
 
-        // ── Linhas dos itens — usa item.val (campo correto de obterItens)
+        // ── Linhas dos itens
         let totalBruto = 0;
         const linhasItens = itens.map((item, idx) => {
             const valorUnit = Number(item.val) || 0;
             totalBruto += item.qtd * valorUnit;
-            const qtdFmt = Number(item.qtd) % 1 === 0 ? parseInt(item.qtd) : item.qtd;
-            const descStr = item.desconto > 0 ? ` (-${item.desconto}%)` : '';
-            const bg = idx % 2 === 0 ? '#ffffff' : '#f4f8f4';
+            const qtdFmt  = Number(item.qtd) % 1 === 0 ? parseInt(item.qtd) : item.qtd;
+            const descStr = item.desconto > 0 ? ` <span style="color:#c0392b;font-size:10px;">(-${item.desconto}%)</span>` : '';
+            const bg      = idx % 2 === 0 ? '#ffffff' : '#f2f8f2';
             return `<tr style="background:${bg};">
-                <td style="padding:8px 14px;border:1px solid #d8e8d8;font-size:12px;color:#222;">${item.desc}${descStr}</td>
-                <td style="padding:8px 10px;border:1px solid #d8e8d8;text-align:center;font-size:12px;color:#444;">${qtdFmt}</td>
-                <td style="padding:8px 10px;border:1px solid #d8e8d8;text-align:right;font-size:12px;color:#444;">${fmt(valorUnit)}</td>
-                <td style="padding:8px 14px;border:1px solid #d8e8d8;text-align:right;font-size:12px;font-weight:700;color:#075e54;">${fmt(item.subtotal)}</td>
+                <td style="padding:9px 16px;border-bottom:1px solid #dde8dd;font-size:12px;">${item.desc}${descStr}</td>
+                <td style="padding:9px 12px;border-bottom:1px solid #dde8dd;font-size:12px;text-align:center;color:#555;width:60px;">${qtdFmt}</td>
+                <td style="padding:9px 12px;border-bottom:1px solid #dde8dd;font-size:12px;text-align:right;color:#555;width:100px;">${fmt(valorUnit)}</td>
+                <td style="padding:9px 16px;border-bottom:1px solid #dde8dd;font-size:12px;text-align:right;font-weight:700;color:#075e54;width:110px;">${fmt(item.subtotal)}</td>
             </tr>`;
         }).join('');
 
-        const economia = totalBruto - total;
-        const econRow = economia > 0.009
-            ? `<tr style="background:#fff8f0;">
-                <td colspan="3" style="padding:7px 14px;border:1px solid #d8e8d8;text-align:right;font-size:11px;color:#c0392b;">Desconto aplicado</td>
-                <td style="padding:7px 14px;border:1px solid #d8e8d8;text-align:right;font-size:11px;color:#c0392b;font-weight:700;">- ${fmt(economia)}</td>
-               </tr>`
-            : '';
+        const economia   = totalBruto - total;
+        const econRow    = economia > 0.009
+            ? `<tr style="background:#fff5f0;"><td colspan="3" style="padding:7px 16px;font-size:11px;color:#c0392b;text-align:right;">Desconto aplicado</td>
+               <td style="padding:7px 16px;font-size:11px;color:#c0392b;font-weight:700;text-align:right;">- ${fmt(economia)}</td></tr>` : '';
 
-        // ── Contato compacto
-        const contatoInfo = [cnpjEmp ? 'CNPJ: '+cnpjEmp : '', zapEmp, emailEmp, cidadeEmp].filter(Boolean).join('   |   ');
+        const contatoInfo = [cnpjEmp ? 'CNPJ: '+cnpjEmp : '', zapEmp, emailEmp, cidadeEmp].filter(Boolean).join('  ·  ');
+        const logoTag     = logoEmp ? `<img src="${logoEmp}" style="height:48px;width:auto;vertical-align:middle;border-radius:4px;margin-right:10px;">` : '';
 
-        // ── Logo tag (usada como célula)
-        const logoHtml = logoEmp ? `<img src="${logoEmp}" style="height:44px;width:auto;display:block;border-radius:4px;">` : '';
+        // ── Monta HTML completo da janela de impressão
+        const htmlCompleto = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Proposta ${numOrc} — ${cliente}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; background:#fff; color:#222; }
+  table { border-collapse: collapse; width: 100%; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none; }
+    @page { margin: 1.5cm; size: A4; }
+  }
+  .btn-print {
+    display: block; margin: 20px auto; padding: 12px 32px;
+    background: #075e54; color: #fff; border: none; border-radius: 8px;
+    font-size: 15px; font-weight: 700; cursor: pointer; font-family: Arial;
+  }
+</style>
+</head>
+<body>
 
-        // ── Monta o HTML como UMA ÚNICA TABLE flat (sem aninhamento)
-        const elementoParaPDF = document.createElement('div');
-        elementoParaPDF.style.cssText = 'width:640px;margin:0;padding:0;font-family:Arial,sans-serif;background:#fff;';
+<button class="btn-print no-print" onclick="window.print()">🖨️ Imprimir / Salvar como PDF</button>
 
-        elementoParaPDF.innerHTML = `
-        <table cellpadding="0" cellspacing="0" style="width:640px;border-collapse:collapse;font-family:Arial,sans-serif;background:#fff;">
+<table style="max-width:700px;margin:0 auto;background:#fff;">
 
-            <!-- ROW 1: Barra topo verde -->
-            <tr style="background:#075e54;">
-                <td style="padding:10px 18px;font-size:10px;font-weight:700;color:#a8d8cb;letter-spacing:2px;text-transform:uppercase;" colspan="2">
-                    Proposta Comercial
-                </td>
-                <td style="padding:10px 18px;text-align:right;font-size:12px;font-weight:700;color:#25d366;" colspan="2">
-                    Nº ${numOrc} &nbsp; <span style="font-size:10px;color:#a8d8cb;font-weight:400;">${hojeStr}</span>
-                </td>
-            </tr>
+  <!-- TOPO verde -->
+  <tr style="background:#075e54;">
+    <td colspan="2" style="padding:10px 20px;font-size:10px;font-weight:700;color:#a8d8cb;letter-spacing:2px;text-transform:uppercase;">Proposta Comercial</td>
+    <td colspan="2" style="padding:10px 20px;text-align:right;font-size:12px;font-weight:700;color:#25d366;">
+      Nº ${numOrc} &nbsp;<span style="font-size:10px;color:#a8d8cb;font-weight:400;">${hojeStr}</span>
+    </td>
+  </tr>
 
-            <!-- ROW 2: Logo + Nome empresa + Validade -->
-            <tr style="border-bottom:2px solid #075e54;background:#fff;">
-                ${logoEmp ? `<td style="padding:14px 10px 14px 18px;width:56px;vertical-align:middle;">${logoHtml}</td>` : ''}
-                <td style="padding:14px 10px;vertical-align:middle;" colspan="${logoEmp ? 2 : 3}">
-                    <div style="font-size:16px;font-weight:800;color:#075e54;">${nomeEmp}</div>
-                    ${contatoInfo ? `<div style="font-size:10px;color:#999;margin-top:3px;">${contatoInfo}</div>` : ''}
-                </td>
-                <td style="padding:14px 18px;text-align:right;vertical-align:middle;width:110px;">
-                    <div style="font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:1px;">Válida até</div>
-                    <div style="font-size:14px;font-weight:800;color:#856404;margin-top:2px;">${validadeStr}</div>
-                </td>
-            </tr>
+  <!-- EMPRESA + VALIDADE -->
+  <tr style="border-bottom:2px solid #075e54;">
+    <td colspan="3" style="padding:16px 20px;vertical-align:middle;">
+      ${logoTag}<span style="font-size:17px;font-weight:800;color:#075e54;vertical-align:middle;">${nomeEmp}</span>
+      ${contatoInfo ? `<div style="font-size:10px;color:#999;margin-top:5px;">${contatoInfo}</div>` : ''}
+    </td>
+    <td style="padding:16px 20px;text-align:right;vertical-align:middle;white-space:nowrap;width:130px;">
+      <div style="font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:1px;">Válida até</div>
+      <div style="font-size:15px;font-weight:800;color:#856404;margin-top:3px;">${validadeStr}</div>
+    </td>
+  </tr>
 
-            <!-- ROW 3: De / Para -->
-            <tr style="background:#f5f8f5;border-bottom:1px solid #dce8dc;">
-                <td style="padding:10px 18px;font-size:10px;vertical-align:top;" colspan="2">
-                    <div style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">De</div>
-                    <div style="font-size:13px;font-weight:600;color:#333;">${nomeEmp || '—'}</div>
-                </td>
-                <td style="padding:10px 18px;font-size:10px;vertical-align:top;border-left:1px solid #dce8dc;" colspan="2">
-                    <div style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Para</div>
-                    <div style="font-size:13px;font-weight:600;color:#333;">${cliente}</div>
-                </td>
-            </tr>
+  <!-- DE / PARA -->
+  <tr style="background:#f5f8f5;border-bottom:1px solid #dce8dc;">
+    <td colspan="2" style="padding:11px 20px;vertical-align:top;width:50%;">
+      <div style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">De</div>
+      <div style="font-size:13px;font-weight:600;">${nomeEmp || '—'}</div>
+    </td>
+    <td colspan="2" style="padding:11px 20px;vertical-align:top;border-left:1px solid #dce8dc;width:50%;">
+      <div style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Para</div>
+      <div style="font-size:13px;font-weight:600;">${cliente}</div>
+    </td>
+  </tr>
 
-            <!-- ROW 4: Cabeçalho tabela de itens -->
-            <tr style="background:#075e54;">
-                <td style="padding:8px 14px;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;" colspan="2">Descrição</td>
-                <td style="padding:8px 10px;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;text-align:center;width:50px;">Qtd</td>
-                <td style="padding:8px 14px;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;text-align:right;" colspan="">Unit. / Total</td>
-            </tr>
-            <!-- Itens -->
-            ${itens.map((item, idx) => {
-                const valorUnit = Number(item.val) || 0;
-                const qtdFmt = Number(item.qtd) % 1 === 0 ? parseInt(item.qtd) : item.qtd;
-                const descStr = item.desconto > 0 ? ` <span style="color:#c0392b;font-size:10px;">(-${item.desconto}%)</span>` : '';
-                const bg = idx % 2 === 0 ? '#ffffff' : '#f4f8f4';
-                return `<tr style="background:${bg};">
-                    <td style="padding:9px 14px;border-bottom:1px solid #d8e8d8;font-size:12px;color:#222;" colspan="2">${item.desc}${descStr}</td>
-                    <td style="padding:9px 10px;border-bottom:1px solid #d8e8d8;text-align:center;font-size:12px;color:#555;width:50px;">${qtdFmt}</td>
-                    <td style="padding:9px 14px;border-bottom:1px solid #d8e8d8;text-align:right;font-size:12px;color:#555;">
-                        <span style="color:#888;">${fmt(valorUnit)}</span>
-                        &nbsp;→&nbsp;
-                        <strong style="color:#075e54;">${fmt(item.subtotal)}</strong>
-                    </td>
-                </tr>`;
-            }).join('')}
+  <!-- CABEÇALHO ITENS -->
+  <tr style="background:#075e54;">
+    <th colspan="2" style="padding:9px 16px;text-align:left;font-size:10px;color:#fff;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;">Descrição</th>
+    <th style="padding:9px 12px;text-align:center;font-size:10px;color:#fff;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;width:60px;">Qtd</th>
+    <th style="padding:9px 12px;text-align:right;font-size:10px;color:#fff;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;width:110px;">Unit. / Total</th>
+  </tr>
 
-            <!-- Desconto (se houver) -->
-            ${economia > 0.009 ? `<tr style="background:#fff8f0;">
-                <td colspan="3" style="padding:7px 14px;text-align:right;font-size:11px;color:#c0392b;border-bottom:1px solid #d8e8d8;">Desconto total aplicado</td>
-                <td style="padding:7px 14px;text-align:right;font-size:11px;color:#c0392b;font-weight:700;border-bottom:1px solid #d8e8d8;">- ${fmt(economia)}</td>
-            </tr>` : ''}
+  <!-- ITENS -->
+  ${itens.map((item, idx) => {
+    const v   = Number(item.val) || 0;
+    const qtd = Number(item.qtd) % 1 === 0 ? parseInt(item.qtd) : item.qtd;
+    const ds  = item.desconto > 0 ? ` <span style="font-size:10px;color:#c0392b;">(-${item.desconto}%)</span>` : '';
+    const bg  = idx % 2 === 0 ? '#ffffff' : '#f2f8f2';
+    return `<tr style="background:${bg};">
+      <td colspan="2" style="padding:9px 16px;border-bottom:1px solid #dde8dd;font-size:12px;">${item.desc}${ds}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #dde8dd;font-size:12px;text-align:center;color:#555;">${qtd}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #dde8dd;font-size:12px;text-align:right;color:#555;">
+        ${fmt(v)}&nbsp;<strong style="color:#075e54;">${fmt(item.subtotal)}</strong>
+      </td>
+    </tr>`;
+  }).join('')}
 
-            <!-- ROW TOTAL -->
-            <tr style="background:#e8f5e9;border-top:2px solid #075e54;border-bottom:2px solid #075e54;">
-                <td colspan="3" style="padding:12px 14px;text-align:right;font-size:13px;font-weight:700;color:#333;">TOTAL GERAL</td>
-                <td style="padding:12px 14px;text-align:right;font-size:18px;font-weight:800;color:#075e54;">R$ ${totalStr}</td>
-            </tr>
+  <!-- DESCONTO (se houver) -->
+  ${economia > 0.009 ? `<tr style="background:#fff5f0;">
+    <td colspan="3" style="padding:7px 16px;font-size:11px;color:#c0392b;text-align:right;">Desconto aplicado</td>
+    <td style="padding:7px 12px;font-size:11px;color:#c0392b;font-weight:700;text-align:right;">- ${fmt(economia)}</td>
+  </tr>` : ''}
 
-            <!-- ROW OBSERVAÇÕES (condicional) -->
-            ${obsP ? `<tr style="background:#fffbee;border-bottom:1px solid #e8e8d0;">
-                <td colspan="4" style="padding:10px 18px;font-size:11px;color:#555;">
-                    <span style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;">Observações: </span>${obsP}
-                </td>
-            </tr>` : ''}
+  <!-- TOTAL -->
+  <tr style="background:#e8f5e9;border-top:2px solid #075e54;border-bottom:2px solid #075e54;">
+    <td colspan="3" style="padding:13px 16px;text-align:right;font-size:13px;font-weight:700;color:#333;">TOTAL GERAL</td>
+    <td style="padding:13px 12px;text-align:right;font-size:18px;font-weight:800;color:#075e54;">R$&nbsp;${totalStr}</td>
+  </tr>
 
-            <!-- ROW ESPAÇO -->
-            <tr><td colspan="4" style="padding:16px;"></td></tr>
+  <!-- OBSERVAÇÕES -->
+  ${obsP ? `<tr style="background:#fffbee;"><td colspan="4" style="padding:10px 20px;font-size:11px;color:#555;">
+    <span style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;">Observações: </span>${obsP}
+  </td></tr>` : ''}
 
-            <!-- ROW ACEITE -->
-            <tr style="background:#f9f9f9;border-top:1px solid #e0e0e0;">
-                <td colspan="4" style="padding:10px 18px 4px;">
-                    <span style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;">Aprovação da Proposta</span>
-                </td>
-            </tr>
-            <tr style="background:#f9f9f9;">
-                <td colspan="2" style="padding:4px 18px 18px;vertical-align:bottom;width:50%;">
-                    <div style="border-top:1px solid #bbb;padding-top:4px;text-align:center;font-size:10px;color:#999;">Assinatura do cliente — ${cliente}</div>
-                </td>
-                <td colspan="2" style="padding:4px 18px 18px;vertical-align:bottom;width:50%;">
-                    <div style="border-top:1px solid #bbb;padding-top:4px;text-align:center;font-size:10px;color:#999;">Data: ___ / ___ / ______</div>
-                </td>
-            </tr>
+  <!-- ESPAÇO -->
+  <tr><td colspan="4" style="padding:20px;"></td></tr>
 
-            <!-- ROW RODAPÉ -->
-            <tr style="background:#eeeeee;border-top:1px solid #ddd;">
-                <td colspan="2" style="padding:7px 18px;font-size:10px;color:#aaa;">
-                    Gerado por <strong style="color:#075e54;">ProDoc Orçamentos</strong>
-                </td>
-                <td colspan="2" style="padding:7px 18px;text-align:right;font-size:10px;color:#bbb;">${hojeStr}</td>
-            </tr>
+  <!-- ACEITE -->
+  <tr style="background:#f9f9f9;border-top:1px solid #e0e0e0;">
+    <td colspan="4" style="padding:10px 20px 4px;font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;">Aprovação da Proposta</td>
+  </tr>
+  <tr style="background:#f9f9f9;">
+    <td colspan="2" style="padding:5px 20px 20px;width:50%;">
+      <div style="border-top:1px solid #bbb;padding-top:5px;text-align:center;font-size:10px;color:#999;">Assinatura do cliente — ${cliente}</div>
+    </td>
+    <td colspan="2" style="padding:5px 20px 20px;width:50%;">
+      <div style="border-top:1px solid #bbb;padding-top:5px;text-align:center;font-size:10px;color:#999;">Data: ___ / ___ / ______</div>
+    </td>
+  </tr>
 
-        </table>`;
+  <!-- RODAPÉ -->
+  <tr style="background:#eeeeee;border-top:1px solid #ddd;">
+    <td colspan="2" style="padding:7px 20px;font-size:10px;color:#aaa;">Gerado por <strong style="color:#075e54;">ProDoc Orçamentos</strong></td>
+    <td colspan="2" style="padding:7px 20px;text-align:right;font-size:10px;color:#bbb;">${hojeStr}</td>
+  </tr>
 
-        // Insere no DOM temporariamente para html2canvas capturar corretamente
-        elementoParaPDF.style.position = 'absolute';
-        elementoParaPDF.style.left = '-9999px';
-        elementoParaPDF.style.top = '0';
-        document.body.appendChild(elementoParaPDF);
+</table>
+</body></html>`;
 
-        html2pdf().from(elementoParaPDF).set({
-            margin: [0.3, 0.3, 0.3, 0.3],
-            filename: `Proposta_${cliente.replace(/\s+/g,'_')}_${numOrc}.pdf`,
-            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, windowWidth: 700 },
-            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-        }).save().then(() => {
-            document.body.removeChild(elementoParaPDF);
-        });
-        salvarNoHistorico(cliente, itens, total, 'pdf');
+        const janela = window.open('', '_blank', 'width=780,height=900');
+        if (!janela) { alert('Permita pop-ups para gerar o PDF.'); return; }
+        janela.document.write(htmlCompleto);
+        janela.document.close();
+        // Aguarda imagens carregarem antes de abrir o print
+        janela.onload = () => setTimeout(() => janela.print(), 400);
     }
 
     async function salvarNoHistorico(cliente, itens, total, tipo) {
