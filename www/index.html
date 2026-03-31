@@ -476,7 +476,7 @@
             <label style="margin-top:10px;">Validade da proposta (dias):</label>
             <input type="number" id="diasValidade" value="7" min="1" placeholder="Ex: 7">
 
-            <button id="btnAbrirAssinatura" class="btn-assinar" onclick="abrirAssinatura()">✍️ COLHER ASSINATURA DO CLIENTE</button>
+            <button id="btnAbrirAssinatura" class="btn-assinar" onclick="abrirAssinatura()" style="display:none;">✍️ COLHER ASSINATURA DO CLIENTE</button>
             <div id="assinaturaPreviewInline" style="display:none;margin:6px 0 2px;text-align:center;">
                 <span style="font-size:11px;color:#27ae60;font-weight:600;">✅ Assinatura capturada</span>
                 <img id="assinaturaThumb" src="" style="display:block;margin:4px auto 0;max-height:44px;border:1px solid #ccc;border-radius:6px;">
@@ -601,6 +601,20 @@
             <button id="btnSalvarLogo" class="btn-salvar" onclick="salvarLogoEmpresa()" style="flex:1;display:none;padding:11px;">💾 Salvar Logo</button>
         </div>
         <button id="btnRemoverLogo" class="btn-remover-logo" onclick="removerLogoEmpresa()" style="display:none;">🗑️ Remover Logo</button>
+
+        <!-- Funcionalidades Opcionais -->
+        <hr style="margin:24px 0 18px;border:0;border-top:1px solid #eee;">
+        <p style="font-weight:bold;color:#075e54;margin-bottom:4px;">⚙️ Funcionalidades Opcionais</p>
+        <p style="font-size:12px;color:#888;margin-bottom:12px;">Ative recursos adicionais conforme a necessidade do seu negócio.</p>
+
+        <label style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f8f8f8;border-radius:10px;cursor:pointer;border:1px solid #eee;margin-bottom:8px;">
+            <input type="checkbox" id="toggleAssinaturaPresencial" onchange="salvarFuncionalidadesOpcionais()"
+                style="width:20px;height:20px;accent-color:#075e54;cursor:pointer;flex-shrink:0;">
+            <span>
+                <strong style="display:block;font-size:14px;color:#333;">✍️ Assinatura Presencial</strong>
+                <span style="font-size:11px;color:#999;">Habilita o campo para o cliente assinar no celular durante uma visita presencial.</span>
+            </span>
+        </label>
 
         <!-- Bloco de equipe — só dono/gerente veem o botão de convidar -->
         <div id="blocoConvite" style="display:none;margin-top:24px;border-top:1px solid #eee;padding-top:18px;">
@@ -1239,6 +1253,7 @@
     // --- INICIALIZAÇÃO ---
     window.onload = function() {
         aplicarDarkModeSalvo();
+        aplicarFeatureFlags();
         if(localStorage.getItem('logado') === 'sim') {
             alternarTelas('principal');
             carregarDadosIniciais();
@@ -1475,6 +1490,7 @@
             return;
         }
         alternarTelas('empresa');
+        aplicarFeatureFlags(); // sincroniza checkboxes de funcionalidades opcionais
         const usuario_id = localStorage.getItem('usuario_id');
         if(!usuario_id) return;
 
@@ -2136,6 +2152,24 @@ CREATE TABLE movimentacoes_estoque (
         if (d.total_orc > 0 || d.despesas_lista.length > 0) {
             document.getElementById('btnRelPDF').style.display = 'block';
         }
+    }
+
+    // ── Feature flags opcionais ──────────────────────────────────────────
+    function salvarFuncionalidadesOpcionais() {
+        const assin = document.getElementById('toggleAssinaturaPresencial')?.checked;
+        localStorage.setItem('feat_assinatura_presencial', assin ? '1' : '0');
+        aplicarFeatureFlags();
+    }
+
+    function aplicarFeatureFlags() {
+        const assin = localStorage.getItem('feat_assinatura_presencial') === '1';
+        const btn = document.getElementById('btnAbrirAssinatura');
+        if (btn) btn.style.display = assin ? 'block' : 'none';
+        // Sincroniza o checkbox em Minha Empresa
+        const chk = document.getElementById('toggleAssinaturaPresencial');
+        if (chk) chk.checked = assin;
+        // Se desativado, limpa assinatura capturada
+        if (!assin) limparAssinaturaCapturada();
     }
 
     function aplicarLogoEmpresa(base64) {
