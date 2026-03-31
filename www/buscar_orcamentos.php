@@ -13,18 +13,31 @@ if(!$usuario_id || !is_numeric($usuario_id)) {
 }
 
 try {
-    // Detecta se as colunas obs/status já existem (adicionadas pelo ponto B)
-    $cols = $conn->query("SHOW COLUMNS FROM orcamentos LIKE 'status'")->fetchAll();
-    $temStatus = count($cols) > 0;
-    $extraCols = $temStatus ? ", obs, status" : "";
+    // Detecta colunas disponíveis
+    $cols       = $conn->query("SHOW COLUMNS FROM orcamentos LIKE 'status'")->fetchAll();
+    $temStatus  = count($cols) > 0;
+    $colsVal    = $conn->query("SHOW COLUMNS FROM orcamentos LIKE 'dias_validade'")->fetchAll();
+    $temValidade = count($colsVal) > 0;
+
+    // Expiração automática: status 'enviado' com data_validade vencida → 'expirado'
+    if ($temStatus && $temValidade) {
+        $conn->prepare(
+            "UPDATE orcamentos SET status = 'expirado'
+             WHERE usuario_id = ? AND status = 'enviado'
+             AND data_validade IS NOT NULL AND data_validade < CURDATE()"
+        )->execute([$usuario_id]);
+    }
+
+    $extraCols  = $temStatus  ? ", obs, status"                   : "";
+    $colsValSel = $temValidade ? ", dias_validade, data_validade" : "";
 
     $stmt = $conn->prepare(
-        "SELECT id, cliente, itens, total, tipo{$extraCols}, criado_em,
+        "SELECT id, cliente, itens, total, tipo{$extraCols}{$colsValSel}, criado_em,
                 editado_em, editado_por, historico_edicoes
          FROM orcamentos
          WHERE usuario_id = :uid
          ORDER BY criado_em DESC
-         LIMIT 50"
+         LIMIT 100"
     );
     $stmt->execute([':uid' => $usuario_id]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -40,6 +53,14 @@ try {
             $row['obs']    = '';
             $row['status'] = 'enviado';
         }
+        if (!$temValidade) {
+            $row['dias_validade']  = 7;
+            $row['data_validade']  = null;
+        }
+        // Formata data_validade para exibição
+        $row['validade_fmt'] = $row['data_validade']
+            ? date('d/m/Y', strtotime($row['data_validade']))
+            : null;
     }
 
     echo json_encode(["status" => "sucesso", "orcamentos" => $rows]);

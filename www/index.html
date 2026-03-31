@@ -1408,18 +1408,23 @@
         // Verifica alertas de estoque baixo em background
         verificarEstoqueBaixo(usuario_id);
 
-        // Busca nome da empresa para usar em orçamentos (cache em localStorage)
-        if(localStorage.getItem('empresa')) return; // já cacheado
-        try {
-            const dados = new FormData();
-            dados.append('usuario_id', usuario_id);
-            const resposta = await fetch(`${SERVER_URL}/buscar_config.php`, { method:'POST', body:dados });
-            const resultado = await resposta.json();
-            if(resultado.status === 'sucesso') {
-                localStorage.setItem('empresa', resultado.empresa || '');
-                localStorage.setItem('zap', resultado.zap || '');
-            }
-        } catch(e) { /* Falha silenciosa */ }
+        // Busca dados completos da empresa para PDF e orçamentos
+        if(!localStorage.getItem('empresa_dados')) {
+            try {
+                const dados = new FormData();
+                dados.append('usuario_id', usuario_id);
+                const resposta = await fetch(`${SERVER_URL}/buscar_empresa.php`, { method:'POST', body:dados });
+                const resultado = await resposta.json();
+                if(resultado.status === 'sucesso') {
+                    const e = resultado.empresa;
+                    localStorage.setItem('empresa', e.nome_fantasia || '');
+                    localStorage.setItem('zap',     e.whatsapp      || '');
+                    localStorage.setItem('logo_empresa', e.logo_empresa || '');
+                    aplicarLogoEmpresa(e.logo_empresa || '');
+                    localStorage.setItem('empresa_dados', JSON.stringify(e));
+                }
+            } catch(e) { /* Falha silenciosa */ }
+        }
     }
 
 
@@ -1625,8 +1630,9 @@
             const resposta = await fetch(`${SERVER_URL}/salvar_empresa.php`, { method: 'POST', body: dados });
             const resultado = await resposta.json();
             if(resultado.status === 'sucesso') {
-                // Atualiza cache usado em gerarOrcamento/gerarPDF
+                // Invalida cache para forçar recarga com dados novos no próximo acesso
                 localStorage.setItem('empresa', nome);
+                localStorage.removeItem('empresa_dados');
                 alert('✅ Dados da empresa salvos com sucesso!');
             } else {
                 alert('❌ Erro: ' + resultado.mensagem);
@@ -2148,6 +2154,7 @@ CREATE TABLE movimentacoes_estoque (
             const json = await res.json();
             if (json.status !== 'sucesso') { alert('❌ ' + json.mensagem); return; }
             localStorage.setItem('logo_empresa', base64);
+            localStorage.removeItem('empresa_dados');
             aplicarLogoEmpresa(base64);
             document.getElementById('btnRemoverLogo').style.display = 'block';
             btn.style.display = 'none';
@@ -3433,14 +3440,6 @@ CREATE TABLE movimentacoes_estoque (
     }
 
     function gerarPDF() {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-        if (isMobile) {
-            alert("Para PDF profissional, use o PC. No celular, use o WhatsApp!");
-            return;
-        }
-
-        const empresa = localStorage.getItem('empresa') || localStorage.getItem('usuario_nome') || 'Empresa';
         const cliente = document.getElementById('clienteInput').value.trim();
         const itens   = obterItens();
         const total   = calcularTotal();
@@ -3448,63 +3447,194 @@ CREATE TABLE movimentacoes_estoque (
         if(!cliente) { alert('Selecione ou informe o nome do cliente.'); return; }
         if(itens.length === 0) { alert('Adicione pelo menos um item com descrição.'); return; }
 
+        const emp = (() => {
+            try { return JSON.parse(localStorage.getItem('empresa_dados') || '{}'); } catch(e) { return {}; }
+        })();
+        const nomeEmp   = emp.nome_fantasia || localStorage.getItem('empresa') || 'Empresa';
+        const cnpjEmp   = emp.cnpj_cpf  || '';
+        const zapEmp    = emp.whatsapp   || localStorage.getItem('zap') || '';
+        const emailEmp  = emp.email      || '';
+        const endEmp    = [emp.endereco, emp.numero].filter(Boolean).join(', ');
+        const cidadeEmp = [emp.cidade, emp.estado].filter(Boolean).join(' - ');
+        const siteEmp   = emp.site || '';
+        const logoEmp   = localStorage.getItem('logo_empresa') || '';
+
         const dias = parseInt(document.getElementById('diasValidade').value) || 7;
+        const hoje = new Date();
         const dataValidade = new Date();
         dataValidade.setDate(dataValidade.getDate() + dias);
+        const hojeStr     = hoje.toLocaleDateString('pt-BR');
         const validadeStr = dataValidade.toLocaleDateString('pt-BR');
-        const totalStr = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-        const fmtP = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-        const linhasItens = itens.map(i => {
-            const qtdStr  = i.qtd !== 1 ? `${i.qtd}x ` : '';
-            const descStr = i.desconto > 0 ? ` <small style="color:#856404;">(-${i.desconto}%)</small>` : '';
-            return `<tr>
-                <td style="padding:8px;border-bottom:1px solid #eee;">${qtdStr}${i.desc}${descStr}</td>
-                <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">R$ ${fmtP(i.subtotal)}</td>
+        const totalStr    = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const obsP        = document.getElementById('orcObservacoes').value.trim();
+        const fmt         = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+        // Número de orçamento simulado (últimos 5 chars do timestamp)
+        const numOrc = String(Date.now()).slice(-5);
+
+        // Calcula subtotal bruto (sem desconto) para mostrar economia
+        let totalSemDesconto = 0;
+        const linhasItens = itens.map((item, idx) => {
+            const valorBruto = item.qtd * item.valor;
+            totalSemDesconto += valorBruto;
+            const temDesc = item.desconto > 0;
+            const valorUnit = Number(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            const descTag = temDesc
+                ? `<div style="font-size:10px;color:#e67e22;font-weight:bold;margin-top:2px;">▼ ${item.desconto}% de desconto</div>`
+                : '';
+            return `<tr style="background:${idx % 2 === 0 ? '#ffffff' : '#f9fbf9'};">
+                <td style="padding:9px 10px;border-bottom:1px solid #eef2ee;vertical-align:top;">
+                    <span style="font-weight:600;color:#222;">${item.desc}</span>${descTag}
+                </td>
+                <td style="padding:9px 10px;border-bottom:1px solid #eef2ee;text-align:center;color:#555;font-size:13px;white-space:nowrap;">${item.qtd}</td>
+                <td style="padding:9px 10px;border-bottom:1px solid #eef2ee;text-align:right;color:#555;font-size:13px;white-space:nowrap;">R$ ${valorUnit}</td>
+                <td style="padding:9px 10px;border-bottom:1px solid #eef2ee;text-align:right;font-weight:700;color:#075e54;white-space:nowrap;">${fmt(item.subtotal)}</td>
             </tr>`;
         }).join('');
 
-        const obsP = document.getElementById('orcObservacoes').value.trim();
+        const economia = totalSemDesconto - total;
+        const econStr  = economia > 0.009
+            ? `<tr><td colspan="3" style="padding:7px 10px;text-align:right;font-size:12px;color:#e67e22;">Desconto aplicado:</td>
+               <td style="padding:7px 10px;text-align:right;font-size:12px;color:#e67e22;font-weight:bold;">- ${fmt(economia)}</td></tr>`
+            : '';
+
+        // Bloco de contato da empresa
+        const contatoLines = [
+            cnpjEmp  ? `<span style="margin-right:14px;">📋 ${cnpjEmp}</span>` : '',
+            zapEmp   ? `<span style="margin-right:14px;">📱 ${zapEmp.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3')}</span>` : '',
+            emailEmp ? `<span style="margin-right:14px;">✉ ${emailEmp}</span>` : '',
+            siteEmp  ? `<span>${siteEmp}</span>` : '',
+        ].filter(Boolean).join('');
+
+        const enderecoLine = [endEmp, cidadeEmp].filter(Boolean).join(' · ');
+
+        const logoHtml = logoEmp
+            ? `<img src="${logoEmp}" style="max-width:140px;max-height:70px;object-fit:contain;display:block;margin-bottom:6px;">`
+            : '';
 
         const elementoParaPDF = document.createElement('div');
         elementoParaPDF.innerHTML = `
-            <div style="padding: 40px; font-family: Arial;">
-                <h1 style="color: #075e54; text-align: center;">ORÇAMENTO PROFISSIONAL</h1>
-                <p><strong>PRESTADOR:</strong> ${empresa}</p>
-                <p><strong>CLIENTE:</strong> ${cliente}</p>
-                <hr>
-                <table style="width:100%;border-collapse:collapse;margin-top:10px;">
+        <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:720px;margin:0 auto;color:#333;">
+
+            <!-- CABEÇALHO -->
+            <div style="background:linear-gradient(135deg,#075e54 0%,#128c7e 100%);padding:28px 32px;border-radius:10px 10px 0 0;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr>
+                        <td style="vertical-align:middle;">
+                            ${logoHtml}
+                            <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:0.5px;">${nomeEmp}</div>
+                            ${contatoLines ? `<div style="margin-top:5px;font-size:11px;color:rgba(255,255,255,0.82);">${contatoLines}</div>` : ''}
+                            ${enderecoLine ? `<div style="margin-top:3px;font-size:11px;color:rgba(255,255,255,0.7);">📍 ${enderecoLine}</div>` : ''}
+                        </td>
+                        <td style="text-align:right;vertical-align:top;white-space:nowrap;">
+                            <div style="font-size:12px;color:rgba(255,255,255,0.7);font-weight:600;letter-spacing:1px;text-transform:uppercase;">Proposta Comercial</div>
+                            <div style="font-size:26px;font-weight:800;color:#25d366;margin-top:4px;">#${numOrc}</div>
+                            <div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.75);">Data: <strong style="color:#fff;">${hojeStr}</strong></div>
+                            <div style="margin-top:3px;font-size:11px;color:rgba(255,255,255,0.75);">Válida até: <strong style="color:#ffdd57;">${validadeStr}</strong></div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- BARRA ACCENT -->
+            <div style="height:5px;background:linear-gradient(90deg,#25d366,#34b7f1,#075e54);"></div>
+
+            <!-- PARA (CLIENTE) -->
+            <div style="background:#f8fdf8;padding:16px 32px;border-bottom:1px solid #e0ede0;">
+                <span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;">Para</span>
+                <div style="font-size:17px;font-weight:700;color:#075e54;margin-top:3px;">👤 ${cliente}</div>
+            </div>
+
+            <!-- TABELA DE ITENS -->
+            <div style="padding:0 0 0 0;">
+                <table style="width:100%;border-collapse:collapse;">
                     <thead>
-                        <tr style="background:#f0f7f0;">
-                            <th style="padding:8px;text-align:left;">Descrição</th>
-                            <th style="padding:8px;text-align:right;">Valor</th>
+                        <tr style="background:#075e54;">
+                            <th style="padding:10px 10px;text-align:left;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;">Descrição</th>
+                            <th style="padding:10px 10px;text-align:center;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Qtd</th>
+                            <th style="padding:10px 10px;text-align:right;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Valor Unit.</th>
+                            <th style="padding:10px 10px;text-align:right;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Subtotal</th>
                         </tr>
                     </thead>
                     <tbody>${linhasItens}</tbody>
+                    <tfoot>
+                        ${econStr}
+                        <tr style="background:#f0fff4;">
+                            <td colspan="3" style="padding:12px 10px;text-align:right;font-size:14px;font-weight:700;color:#075e54;">TOTAL</td>
+                            <td style="padding:12px 10px;text-align:right;font-size:18px;font-weight:800;color:#25d366;">R$ ${totalStr}</td>
+                        </tr>
+                    </tfoot>
                 </table>
-                <h2 style="text-align: right; color: #25d366; margin-top:20px;">TOTAL: R$ ${totalStr}</h2>
-                <p style="text-align:right;font-size:12px;color:#666;">Proposta válida até: ${validadeStr}</p>
-                ${obsP ? `<p style="margin-top:15px;font-size:12px;color:#555;border-top:1px solid #eee;padding-top:10px;"><strong>Observações:</strong> ${obsP}</p>` : ''}
             </div>
-        `;
+
+            <!-- VALIDADE + OBS -->
+            <div style="padding:18px 32px;background:#f8fdf8;border-top:2px solid #e0ede0;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr>
+                        <td style="vertical-align:top;padding-right:20px;">
+                            ${obsP ? `<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Observações</div>
+                            <div style="font-size:12px;color:#555;line-height:1.5;">${obsP}</div>` : ''}
+                        </td>
+                        <td style="text-align:right;vertical-align:top;white-space:nowrap;">
+                            <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 14px;display:inline-block;text-align:center;">
+                                <div style="font-size:10px;color:#856404;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">⏳ Proposta válida até</div>
+                                <div style="font-size:16px;font-weight:800;color:#856404;margin-top:4px;">${validadeStr}</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- ACEITE -->
+            <div style="padding:20px 32px;border-top:1px solid #e0ede0;">
+                <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Aprovação da Proposta</div>
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr>
+                        <td style="width:48%;padding-right:10px;">
+                            <div style="border-top:1.5px solid #bbb;padding-top:6px;text-align:center;">
+                                <div style="font-size:11px;color:#555;">Assinatura do Cliente</div>
+                                <div style="font-size:10px;color:#aaa;margin-top:2px;">${cliente}</div>
+                            </div>
+                        </td>
+                        <td style="width:4%;"></td>
+                        <td style="width:48%;padding-left:10px;">
+                            <div style="border-top:1.5px solid #bbb;padding-top:6px;text-align:center;">
+                                <div style="font-size:11px;color:#555;">Data de Aprovação</div>
+                                <div style="font-size:10px;color:#aaa;margin-top:2px;">___/___/______</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- RODAPÉ -->
+            <div style="background:#075e54;padding:12px 32px;border-radius:0 0 10px 10px;display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-size:11px;color:rgba(255,255,255,0.7);">Gerado por <strong style="color:#25d366;">ProDoc Orçamentos</strong></div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.55);">${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+            </div>
+
+        </div>`;
 
         html2pdf().from(elementoParaPDF).set({
-            margin: 1,
-            filename: `Orcamento_${cliente}.pdf`,
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            margin: [0.4, 0.4, 0.4, 0.4],
+            filename: `Proposta_${cliente.replace(/\s+/g,'_')}_${numOrc}.pdf`,
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
         }).save();
         salvarNoHistorico(cliente, itens, total, 'pdf');
     }
 
     async function salvarNoHistorico(cliente, itens, total, tipo) {
-        const obs = document.getElementById('orcObservacoes')?.value.trim() || '';
+        const obs  = document.getElementById('orcObservacoes')?.value.trim() || '';
+        const dias = parseInt(document.getElementById('diasValidade')?.value) || 7;
 
         // 1. Salva no localStorage (funciona offline)
         const historico = JSON.parse(localStorage.getItem('historico') || '[]');
         const agora = new Date();
         const dataStr = agora.toLocaleDateString('pt-BR') + ' ' +
                         agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        historico.unshift({ data: dataStr, cliente, itens, total, tipo, obs });
-        if(historico.length > 50) historico.pop();
+        historico.unshift({ data: dataStr, cliente, itens, total, tipo, obs, dias_validade: dias });
+        if(historico.length > 100) historico.pop();
         localStorage.setItem('historico', JSON.stringify(historico));
 
         // 2. Salva no banco de dados
@@ -3518,6 +3648,7 @@ CREATE TABLE movimentacoes_estoque (
             dados.append('total', total);
             dados.append('tipo', tipo);
             dados.append('obs', obs);
+            dados.append('dias_validade', dias);
             const res  = await fetch(`${SERVER_URL}/salvar_orcamento.php`, { method: 'POST', body: dados });
             const json = await res.json();
             // Atualiza id no cache local para permitir alterar status sem recarregar
@@ -3693,14 +3824,21 @@ CREATE TABLE movimentacoes_estoque (
             const editado  = h.editado_em
                 ? `<span class="hi-editado">✏️ Editado em ${h.editado_em} por ${h.editado_por}</span>`
                 : '';
+            // Validade
+            let validadeHtml = '';
+            if (h.validade_fmt && statusKey === 'enviado') {
+                validadeHtml = `<span style="font-size:11px;color:#856404;background:#fff3cd;border-radius:4px;padding:1px 6px;margin-left:6px;">⏳ válida até ${h.validade_fmt}</span>`;
+            } else if (statusKey === 'expirado') {
+                validadeHtml = `<span style="font-size:11px;color:#6c757d;background:#e2e3e5;border-radius:4px;padding:1px 6px;margin-left:6px;">⏱ expirada${h.validade_fmt ? ' em ' + h.validade_fmt : ''}</span>`;
+            }
             const btns = h.id ? `
                 <div style="display:flex;gap:6px;margin-top:8px;">
                     <button onclick="abrirVerOrc(${h.id})"
-                        style="flex:1;background:#17a2b8;color:white;border:none;border-radius:5px;padding:6px;cursor:pointer;font-size:12px;font-weight:bold;">
+                        style="flex:1;background:#17a2b8;color:white;border:none;border-radius:8px;padding:7px;cursor:pointer;font-size:12px;font-weight:bold;">
                         👁️ Ver / Status
                     </button>
                     <button onclick="abrirEditarOrc(${h.id})"
-                        style="flex:1;background:#ffc107;color:#333;border:none;border-radius:5px;padding:6px;cursor:pointer;font-size:12px;font-weight:bold;">
+                        style="flex:1;background:#ffc107;color:#333;border:none;border-radius:8px;padding:7px;cursor:pointer;font-size:12px;font-weight:bold;">
                         ✏️ Editar
                     </button>
                 </div>` : '';
@@ -3716,7 +3854,7 @@ CREATE TABLE movimentacoes_estoque (
                         <span class="hi-total">R$ ${totalStr}</span>
                         <span class="hi-tipo">${tipoIcon}</span>
                     </div>
-                    <div style="margin-top:4px;">${statusHtml}</div>
+                    <div style="margin-top:5px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">${statusHtml}${validadeHtml}</div>
                     ${btns}
                 </div>`;
         }).join('');
