@@ -31,6 +31,8 @@
         .btn-whatsapp:active { transform: scale(0.97); }
         .btn-pdf { background: #007bff; color: white; border: none; padding: 15px; margin-top: 10px; cursor: pointer; border-radius: 10px; width: 100%; font-weight: bold; font-size: 16px; transition: background 0.2s, transform 0.1s; }
         .btn-pdf:active { transform: scale(0.97); }
+        .btn-share { background: #6f42c1; color: white; border: none; padding: 15px; margin-top: 10px; cursor: pointer; border-radius: 10px; width: 100%; font-weight: bold; font-size: 16px; transition: background 0.2s, transform 0.1s; box-shadow: 0 3px 10px rgba(111,66,193,0.25); }
+        .btn-share:active { transform: scale(0.97); }
 
         hr { margin: 30px 0; border: 0; border-top: 1px solid #f0f0f0; }
         .logo-preview { display: block; margin: 0 auto; width: 130px; }
@@ -459,6 +461,7 @@
 
             <button class="btn-whatsapp" onclick="gerarOrcamento()">🚀 GERAR E ENVIAR WHATSAPP</button>
             <button class="btn-pdf" onclick="gerarPDF()">📄 GERAR ORÇAMENTO EM PDF</button>
+            <button class="btn-share" onclick="compartilharOrcamento()">📤 COMPARTILHAR ORÇAMENTO</button>
         </div>
     </div>
 
@@ -2044,7 +2047,7 @@ CREATE TABLE movimentacoes_estoque (
 
         // --- Por tipo ---
         if (d.por_tipo.length > 0) {
-            const tipoLabels = { whatsapp: '📱 WhatsApp', pdf: '📄 PDF' };
+            const tipoLabels = { whatsapp: '📱 WhatsApp', pdf: '📄 PDF', compartilhado: '📤 Compartilhado' };
             html += `<div class="rel-secao">
                 <p class="rel-secao-titulo">📊 Por canal de envio</p>`;
             d.por_tipo.forEach(t => {
@@ -2065,7 +2068,7 @@ CREATE TABLE movimentacoes_estoque (
             d.orcamentos.forEach(o => {
                 const data   = new Date(o.criado_em).toLocaleDateString('pt-BR');
                 const itensStr = (o.itens || []).map(i => i.desc).filter(Boolean).join(', ');
-                const tipoIcon = o.tipo === 'whatsapp' ? '📱' : '📄';
+                const tipoIcon = o.tipo === 'whatsapp' ? '📱' : (o.tipo === 'compartilhado' ? '📤' : '📄');
                 html += `<div class="orc-rel-item">
                     <div class="orc-rel-header">
                         <span class="orc-rel-cliente">${tipoIcon} ${o.cliente}</span>
@@ -3463,6 +3466,67 @@ CREATE TABLE movimentacoes_estoque (
         salvarNoHistorico(cliente, itens, total, 'pdf');
     }
 
+    async function compartilharOrcamento() {
+        const cliente = document.getElementById('clienteInput').value.trim();
+        const itens   = obterItens();
+        const total   = calcularTotal();
+
+        if (!cliente) { alert('Selecione ou informe o nome do cliente.'); return; }
+        if (itens.length === 0) { alert('Adicione pelo menos um item com descrição.'); return; }
+
+        const emp     = (() => { try { return JSON.parse(localStorage.getItem('empresa_dados') || '{}'); } catch(e) { return {}; } })();
+        const nomeEmp = emp.nome_fantasia || localStorage.getItem('empresa') || localStorage.getItem('usuario_nome') || '';
+        const diasEl  = document.getElementById('diasValidade');
+        const dias    = parseInt(diasEl ? diasEl.value : '7') || 7;
+        const dataVal = new Date(); dataVal.setDate(dataVal.getDate() + dias);
+        const validadeStr = dataVal.toLocaleDateString('pt-BR');
+        const totalStr    = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const obs = (document.getElementById('orcObservacoes')?.value || '').trim();
+
+        const linhas = itens.map(i => {
+            const qtdStr = Number(i.qtd) !== 1 ? `${i.qtd}x ` : '';
+            const dsStr  = i.desconto > 0 ? ` (-${i.desconto}%)` : '';
+            return `  • ${qtdStr}${i.desc}${dsStr}: ${fmt(i.subtotal)}`;
+        }).join('\n');
+
+        const texto =
+            `📄 PROPOSTA COMERCIAL\n` +
+            (nomeEmp ? `🏢 ${nomeEmp}\n` : '') +
+            `━━━━━━━━━━━━━━━━━━\n` +
+            `👤 Cliente: ${cliente}\n\n` +
+            `🛠️ Itens:\n${linhas}\n\n` +
+            `💰 Total: R$ ${totalStr}\n` +
+            `📅 Válida até: ${validadeStr}\n` +
+            (obs ? `📝 Obs: ${obs}\n` : '') +
+            `━━━━━━━━━━━━━━━━━━\n` +
+            `Gerado por ProDoc Orçamentos`;
+
+        // Usa Share nativo do Capacitor (Android/iOS) ou fallback Web Share API
+        try {
+            const sharePlugin = window.Capacitor?.Plugins?.Share;
+            if (sharePlugin) {
+                await sharePlugin.share({
+                    title: `Orçamento — ${cliente}`,
+                    text: texto,
+                    dialogTitle: 'Compartilhar orçamento'
+                });
+            } else if (navigator.share) {
+                await navigator.share({ title: `Orçamento — ${cliente}`, text: texto });
+            } else {
+                // Fallback: copia para área de transferência
+                await navigator.clipboard.writeText(texto);
+                alert('Texto do orçamento copiado! Cole no WhatsApp ou outro app.');
+            }
+            salvarNoHistorico(cliente, itens, total, 'compartilhado');
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                console.error('Erro ao compartilhar:', err);
+                alert('Não foi possível compartilhar. Tente pelo botão WhatsApp.');
+            }
+        }
+    }
+
     function _abrirJanelaPDF(cliente, itens, total, nomeEmp, cnpjEmp, zapEmp, emailEmp, cidadeEmp, logoEmp) {
         const hoje = new Date();
         const diasEl = document.getElementById('diasValidade');
@@ -3833,7 +3897,7 @@ CREATE TABLE movimentacoes_estoque (
             const itens    = Array.isArray(h.itens) ? h.itens : JSON.parse(h.itens || '[]');
             const itensStr = itens.map(i => i.desc).join(', ');
             const totalStr = Number(h.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-            const tipoIcon = h.tipo === 'whatsapp' ? '📱 WhatsApp' : '📄 PDF';
+            const tipoIcon = h.tipo === 'whatsapp' ? '📱 WhatsApp' : (h.tipo === 'compartilhado' ? '📤 Compartilhado' : '📄 PDF');
             const data     = h.criado_em || h.data;
             const statusKey = h.status || 'enviado';
             const statusHtml = `<span class="status-badge ${STATUS_CLASS[statusKey]}">${STATUS_LABEL[statusKey]}</span>`;
