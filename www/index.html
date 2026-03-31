@@ -3466,24 +3466,13 @@ CREATE TABLE movimentacoes_estoque (
     function _abrirJanelaPDF(cliente, itens, total, nomeEmp, cnpjEmp, zapEmp, emailEmp, cidadeEmp, logoEmp) {
         const hoje = new Date();
         const diasEl = document.getElementById('diasValidade');
-        const dias = parseInt(diasEl ? diasEl.value : '7') || 7;
+        const dias        = parseInt(diasEl ? diasEl.value : '7') || 7;
         const dataValidade = new Date();
         dataValidade.setDate(dataValidade.getDate() + dias);
         const hojeStr     = hoje.toLocaleDateString('pt-BR');
         const validadeStr = dataValidade.toLocaleDateString('pt-BR');
         const totalStr    = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         const obsP        = (document.getElementById('orcObservacoes')?.value || '').trim();
-        const fmt         = v => 'R$&nbsp;' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-        const numOrc      = String(Date.now()).slice(-6);
-
-        const dias = parseInt(document.getElementById('diasValidade').value) || 7;
-        const hoje = new Date();
-        const dataValidade = new Date();
-        dataValidade.setDate(dataValidade.getDate() + dias);
-        const hojeStr     = hoje.toLocaleDateString('pt-BR');
-        const validadeStr = dataValidade.toLocaleDateString('pt-BR');
-        const totalStr    = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-        const obsP        = document.getElementById('orcObservacoes').value.trim();
         const fmt         = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         const numOrc      = String(Date.now()).slice(-6);
 
