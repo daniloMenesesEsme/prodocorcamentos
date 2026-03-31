@@ -504,7 +504,13 @@
 
     <!-- 4. TELA DE HISTÓRICO -->
     <div id="telaHistorico" class="card" style="display: none;">
-        <h2>📋 Histórico</h2>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <h2 style="margin:0;">📋 Histórico</h2>
+            <button onclick="exportarCSV()" title="Exportar CSV"
+                style="background:#075e54;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">
+                ⬇️ CSV
+            </button>
+        </div>
 
         <!-- Busca por texto -->
         <div class="hist-busca-wrap">
@@ -3982,6 +3988,72 @@ CREATE TABLE movimentacoes_estoque (
     let cacheHistorico    = [];
     let orcamentoAtualVer = null;
     let filtroHistAtivo   = 'todos';
+
+    // ── E5: Export CSV ──────────────────────────────────────────────────
+    async function exportarCSV() {
+        const dados = cacheHistorico.length > 0 ? cacheHistorico : JSON.parse(localStorage.getItem('historico') || '[]');
+        if (!dados.length) { alert('Nenhum orçamento para exportar.'); return; }
+
+        const esc = v => {
+            const s = String(v ?? '').replace(/"/g, '""');
+            return /[",\n;]/.test(s) ? `"${s}"` : s;
+        };
+
+        const linhas = [
+            // Cabeçalho
+            ['Data', 'Cliente', 'Canal', 'Status', 'Total (R$)', 'Validade (dias)', 'Itens', 'Observacao'].join(';')
+        ];
+
+        dados.forEach(o => {
+            const itens = Array.isArray(o.itens) ? o.itens : (JSON.parse(o.itens || '[]') || []);
+            const itensStr = itens.map(i => `${i.desc} x${i.qtd}`).join(' | ');
+            const total   = Number(o.total).toFixed(2).replace('.', ',');
+            const status  = o.status || 'enviado';
+            const canal   = o.tipo   || 'whatsapp';
+            const dias    = o.dias_validade || '';
+            const obs     = o.obs || '';
+            const data    = o.criado_em || o.data || '';
+            linhas.push([
+                esc(data), esc(o.cliente), esc(canal), esc(status),
+                esc(total), esc(dias), esc(itensStr), esc(obs)
+            ].join(';'));
+        });
+
+        const csvContent = '\uFEFF' + linhas.join('\r\n'); // BOM para Excel reconhecer UTF-8
+        const nomeArq = `orcamentos_${new Date().toISOString().slice(0,10)}.csv`;
+
+        // Android (Capacitor Filesystem + Share)
+        const fsPlugin = window.Capacitor?.Plugins?.Filesystem;
+        const sharePlugin = window.Capacitor?.Plugins?.Share;
+        if (fsPlugin && sharePlugin) {
+            try {
+                const result = await fsPlugin.writeFile({
+                    path: nomeArq,
+                    data: btoa(unescape(encodeURIComponent(csvContent))),
+                    directory: 'CACHE',
+                    encoding: 'base64'
+                });
+                await sharePlugin.share({
+                    title: 'Exportar orçamentos CSV',
+                    url: result.uri,
+                    dialogTitle: 'Salvar ou compartilhar planilha'
+                });
+                return;
+            } catch(e) {
+                console.warn('Filesystem/Share falhou, tentando download:', e);
+            }
+        }
+
+        // Browser: download direto
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = nomeArq;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    }
 
     function setFiltroHist(filtro) {
         filtroHistAtivo = filtro;
