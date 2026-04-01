@@ -1236,7 +1236,7 @@
     // No app (Capacitor), o path é /index.html
     // No browser (Laragon), o path é /prodocorcamentos/www/index.html
     const isNativeApp = !window.location.pathname.includes('/prodocorcamentos/');
-    const SERVER_URL = isNativeApp ? 'http://192.168.0.5/prodocorcamentos/www' : '/prodocorcamentos/www';
+    const SERVER_URL = isNativeApp ? 'https://prodocorcamentos.free.nf' : '/prodocorcamentos/www';
 
     // --- DARK MODE ---
     function alternarDarkMode() {
